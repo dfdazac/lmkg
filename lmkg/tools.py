@@ -21,11 +21,11 @@ def get_predicates_of_object(entity_id: str):
     """Get a random list of predicates in which the given entity occurs as an object."""
     pass
 
-def get_head_entities(predicate_id: str):
+def get_subject_entities(predicate_id: str):
     """Get a random list of predicates in which the given entity occurs as a subject."""
     pass
 
-def get_tail_entities(predicate_id: str):
+def get_object_entities(predicate_id: str):
     """Get a random list of predicates in which the given entity occurs as an object."""
     pass
 
