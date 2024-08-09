@@ -2,7 +2,7 @@ from transformers import pipeline, TextStreamer
 import torch
 from datetime import datetime
 import json
-import math
+import re
 
 from lmkg.templates import get_template
 
@@ -24,6 +24,19 @@ def multiply(a: float, b: float):
 tools = {"current_time": current_time,
          "multiply": multiply}
 
+def match_tool_call(text: str) -> re.Match:
+    """Check if a string contains any tool call."""
+    function_regex = r"<function=(\w+)>(.*?)</function>"
+    return re.search(function_regex, text)
+
+def run_tool_call(match: re.Match) -> str:
+    function_name, args_string = match.groups()
+    try:
+        args = json.loads(args_string) if args_string else {}
+        return str(tools[function_name](**args))
+    except json.JSONDecodeError as error:
+        return f"Error parsing function arguments: {error}"
+
 pipe = pipeline(
     "text-generation",
     model="meta-llama/Meta-Llama-3.1-8B-Instruct",
@@ -32,13 +45,12 @@ pipe = pipeline(
 )
 PYTHON_TOKEN = pipe.tokenizer.get_added_vocab()['<|python_tag|>']
 streamer = TextStreamer(pipe.tokenizer, skip_prompt=False)
+chat_template = get_template("llama3-custom-answer")
 
-messages = [{"role": "system",
-             "content": "You are a helpful assistant with tool calling capabilities. "
-                        "When you receive a tool call response, use the output to format an answer to the original user question. "
-                        "If multiple tool calls are needed, only make one at a time and wait for the tool response."}]
+messages = []
+
 while True:
-    user_input = "How much is 34 times 546?"
+    user_input = input("> ")  # "What time is it?"  # How much is 34 times 546?"
     messages.append({"role": "user", "content": user_input})
 
     done = False
@@ -46,38 +58,29 @@ while True:
         inputs = pipe.tokenizer.apply_chat_template(
             messages,
             tools=tools.values(),
+            chat_template=chat_template,
             tokenize=False,
             add_generation_prompt=True
         )
 
-        output_ids = pipe(
+        outputs = pipe(
             inputs,
             max_new_tokens=2048,
+            return_full_text=False,
             pad_token_id=pipe.tokenizer.eos_token_id,
-            streamer=streamer,
-            return_tensors=True,
-        )[0]['generated_token_ids']
+            streamer=None,
+        )[0]['generated_text']
 
-        input_ids = pipe.tokenizer(inputs)['input_ids']
-        input_length = len(input_ids)
-        output_ids = output_ids[input_length:]
-
-        outputs = pipe.tokenizer.decode(output_ids)
         messages.append({"role": "assistant", "content": outputs})
 
-        if output_ids[0] == PYTHON_TOKEN:
-            function_call = pipe.tokenizer.decode(output_ids, skip_special_tokens=True)
-            function_dict = json.loads(function_call)
-            # print(f'\tFunction call: {function_dict}')
-            function_output = tools[function_dict["name"]](**function_dict["parameters"])
-            function_output = str(function_output)
-            # print(f'\tOutput: {function_output}')
-
-            messages.append({"role": "ipython", "content": {"output": function_output}})
-
-        else:
-            done = True
-            # print(outputs)
+        if match := match_tool_call(outputs):
             print("=" * 50)
-
-    # break
+            print("Calling function...")
+            print(outputs)
+            tool_result = run_tool_call(match)
+            print(tool_result)
+            messages.append({"role": "ipython", "content": {"output": tool_result}})
+            print("=" * 50)
+        else:
+            print(outputs)
+            done = True
