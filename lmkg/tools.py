@@ -1,5 +1,5 @@
 def get_definition(unique_id: str):
-    """Retrieve textual definition of an entity or predicate given its unique identifier."""
+    """Retrieve textual definition or label of an entity or predicate given its unique identifier."""
     pass
 
 def get_most_similar(unique_id: str):
@@ -7,7 +7,11 @@ def get_most_similar(unique_id: str):
     pass
 
 def search_predicate(query: str):
-    """Search for predicates that match the given query."""
+    """Search for predicates with a label matching the given query."""
+    pass
+
+def search_entity(query: str):
+    """Search for entities with a label matching the given query."""
     pass
 
 def get_predicates_with_subject(entity_id: str):
