@@ -10,11 +10,12 @@ pipe = pipeline(
     "text-generation",
     model="meta-llama/Meta-Llama-3.1-8B-Instruct",
     model_kwargs={"torch_dtype": torch.bfloat16},
-    device="cuda",
+    device="cpu",
 )
 chat_template = get_template("llama3-custom-answer")
 
 messages = []
+streamer = TextStreamer(pipe.tokenizer, skip_prompt=False)
 
 while True:
     user_input = input("> ")  # "What time is it?"  # How much is 34 times 546?"
@@ -35,7 +36,7 @@ while True:
             max_new_tokens=2048,
             return_full_text=False,
             pad_token_id=pipe.tokenizer.eos_token_id,
-            streamer=None,
+            streamer=streamer,
         )[0]['generated_text']
 
         messages.append({"role": "assistant", "content": outputs})

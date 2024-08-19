@@ -1,0 +1,7 @@
+PREFIX wiki: <http://wikidata.org/wiki/>
+
+ASK {
+    {wiki:s0 ?p ?o .}
+    UNION
+    {?o ?p wiki:s0}
+}

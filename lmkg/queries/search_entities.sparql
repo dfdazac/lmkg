@@ -1,0 +1,8 @@
+PREFIX wiki: <http://wikidata.org/wiki/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?e (SUBSTR(?c, 1, 150) AS ?shortComment) WHERE {
+    ?e <http://www.ontotext.com/plugins/autocomplete#query> "q0" .
+    ?e rdfs:comment ?c .
+    FILTER (!STRSTARTS(STR(?e), STR(wiki:P)))
+} LIMIT 10
