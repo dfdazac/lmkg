@@ -1,26 +1,17 @@
 import re
 import json
 
-from .tools import tools_dict
-
-def match_tool_call(text: str) -> re.Match:
+def match_tool_call(text: str):
     """Check if a string contains any tool call.
 
     Args:
         text: The string to check.
     """
     function_regex = r"<function=(\w+)>(.*?)</function>"
-    return re.search(function_regex, text)
-
-def run_tool_call(match: re.Match) -> str:
-    """Run a tool call from a regular expression match parsed from a string.
-
-    Args:
-        match: The match containing the function and arguments.
-    """
-    function_name, args_string = match.groups()
-    try:
+    match = re.search(function_regex, text)
+    if not match:
+        return None
+    else:
+        function_name, args_string = match.groups()
         args = json.loads(args_string) if args_string else {}
-        return str(tools_dict[function_name](**args))
-    except json.JSONDecodeError as error:
-        return f"Error parsing function arguments: {error}"
+        return function_name, args

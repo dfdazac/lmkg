@@ -1,62 +1,75 @@
-from SPARQLWrapper import SPARQLWrapper, JSON
-import functools
+from SPARQLWrapper import JSON, SPARQLWrapper
+from transformers.utils import get_json_schema
 
 
-def load_sparql_query(func: callable):
-    """Decorator to load a SPARQL query file based on a method name."""
-    queries_dict = {}
-
-    @functools.wraps(func)
-    def wrapper(self, *args, **kwargs):
-        method_name = func.__name__
-
-        if method_name not in queries_dict:
-            with open(f"queries/{method_name}.sparql", "r") as f:
-                print(f"Loading SPARQL query for {method_name}")
-                queries_dict[method_name] = f.read()
-
-        return func(self, queries_dict[method_name], *args, **kwargs)
-
-    return wrapper
+def tool(func):
+    func._is_tool = True
+    return func
 
 
 class GraphDBConnector:
     def __init__(self, endpoint: str):
         self.wrapper = SPARQLWrapper(endpoint)
         self.wrapper.setReturnFormat(JSON)
+        self.queries_dict = dict()
 
-    def execute(self, query: str):
+        self.tools_json = []
+        for attr_name in dir(self):
+            attribute = getattr(self, attr_name)
+            if callable(attribute) and getattr(attribute, '_is_tool', False):
+                self.tools_json.append(get_json_schema(attribute))
+
+    def _get_query(self, query_name: str):
+        if query_name not in self.queries_dict:
+            with open(f"queries/{query_name}.sparql", "r") as f:
+                self.queries_dict[query_name] = f.read()
+        return self.queries_dict[query_name]
+
+    def execute_query(self, query: str):
         self.wrapper.setQuery(query)
         return self.wrapper.query().convert()
 
-    @load_sparql_query
-    def id_in_graph(self, query: str, identifier: str):
+    def id_in_graph(self, identifier: str):
         """Check if a given URI exists in some triple in the KG."""
+        query = self._get_query(self.id_in_graph.__name__)
         query = query.replace("s0", identifier)
-        result = self.execute(query)
+        result = self.execute_query(query)
 
         return result['boolean']
 
-    @load_sparql_query
-    def get_definition(self, query: str, unique_id: str):
-        """Retrieve textual definition or label of an entity or predicate given
-        its unique identifier."""
+    @tool
+    def get_definition(self, unique_id: str):
+        """Retrieve definition of an entity or predicate given its unique identifier.
+
+        Args:
+            unique_id: Unique identifier of an entity or predicate.
+        """
         if not self.id_in_graph(unique_id):
             raise ValueError(f"Identifier {unique_id} not found in the graph.")
+        query = self._get_query(self.get_definition.__name__)
         query = query.replace("s0", unique_id)
-        return self.execute(query)
+        return self.execute_query(query)
 
-    @load_sparql_query
-    def search_entities(self, query: str, entity_query: str):
-        """Search for entities with a label matching the given query."""
+    @tool
+    def search_entities(self, entity_query: str):
+        """Find entity identifiers that best match a given search query.
+
+        Args:
+            entity_query: Entity query to search for.
+        """
+        query = self._get_query(self.search_entities.__name__)
         query = query.replace("q0", entity_query)
-        return self.execute(query)
+        return self.execute_query(query)
 
-    @load_sparql_query
-    def search_predicates(self, query: str, predicate_query: str):
-        """Search for predicates with a label matching the given query."""
+    def search_predicates(self, predicate_query: str):
+        """Find predicate identifiers that best match a given search query.
+
+        Args:
+            predicate_query: Entity query to search for.
+        """
+        query = self._get_query(self.search_predicates.__name__)
         query = query.replace("q0", predicate_query)
-        return self.execute(query)
+        return self.execute_query(query)
 
     def get_most_similar(self, unique_id: str):
         """Retrieve a list of entities or predicates that are semantically
