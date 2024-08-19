@@ -1,4 +1,23 @@
 from SPARQLWrapper import SPARQLWrapper, JSON
+import functools
+
+
+def load_sparql_query(func: callable):
+    """Decorator to load a SPARQL query file based on a method name."""
+    queries_dict = {}
+
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        method_name = func.__name__
+
+        if method_name not in queries_dict:
+            with open(f"queries/{method_name}.sparql", "r") as f:
+                print(f"Loading SPARQL query for {method_name}")
+                queries_dict[method_name] = f.read()
+
+        return func(self, queries_dict[method_name], *args, **kwargs)
+
+    return wrapper
 
 
 class GraphDBConnector:
@@ -10,37 +29,32 @@ class GraphDBConnector:
         self.wrapper.setQuery(query)
         return self.wrapper.query().convert()
 
-    def id_in_graph(self, identifier: str):
+    @load_sparql_query
+    def id_in_graph(self, query: str, identifier: str):
         """Check if a given URI exists in some triple in the KG."""
-        with open("queries/id_in_graph.sparql") as f:
-            query = f.read()
         query = query.replace("s0", identifier)
         result = self.execute(query)
 
         return result['boolean']
 
-    def get_definition(self, unique_id: str):
+    @load_sparql_query
+    def get_definition(self, query: str, unique_id: str):
         """Retrieve textual definition or label of an entity or predicate given
         its unique identifier."""
         if not self.id_in_graph(unique_id):
             raise ValueError(f"Identifier {unique_id} not found in the graph.")
-
-        with open("queries/get_definition.sparql") as f:
-            query = f.read()
         query = query.replace("s0", unique_id)
         return self.execute(query)
 
-    def search_entities(self, entity_query: str):
+    @load_sparql_query
+    def search_entities(self, query: str, entity_query: str):
         """Search for entities with a label matching the given query."""
-        with open("queries/search_entities.sparql") as f:
-            query = f.read()
         query = query.replace("q0", entity_query)
         return self.execute(query)
 
-    def search_predicates(self, predicate_query: str):
+    @load_sparql_query
+    def search_predicates(self, query: str, predicate_query: str):
         """Search for predicates with a label matching the given query."""
-        with open("queries/search_predicates.sparql") as f:
-            query = f.read()
         query = query.replace("q0", predicate_query)
         return self.execute(query)
 
@@ -76,4 +90,10 @@ class GraphDBConnector:
 
 if __name__ == "__main__":
     db = GraphDBConnector("http://localhost:7200/repositories/wikidata5m")
-    print(db.search_entities("michael jordan"))
+    db.search_entities("michael jordan")
+    db.search_entities("michael jordan")
+    db.search_entities("michael jordan")
+    db.search_entities("alma mater")
+    db.search_predicates("alma mater")
+    db.search_predicates("alma mater")
+    db.search_entities("michael jordan")
