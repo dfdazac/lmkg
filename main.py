@@ -26,7 +26,11 @@ env = jinja2.Environment(loader=jinja2.PackageLoader("lmkg",
                                                      "prompts"))
 prompt = env.get_template("entity_linking.jinja")
 
-text = "Some countries are leading the way in renewable wind power. With 58% of its electricity coming from turbines, Denmark’s wind production exceeds any other OEDC (Organisation for Economic Co-operation and Development) country per capita."
+text = ("Amsterdam is the Netherlands’ capital, known for its artistic "
+        "heritage elaborate canal system and narrow houses with gabled "
+        "facades, legacies of the city’s 17th-century Golden Age. Its Museum "
+        "District houses the Van Gogh Museum, works by Rembrandt and Vermeer "
+        "at the Rijksmuseum, and modern art at the Stedelijk.")
 messages.append({"role": "user", "content": prompt.render(text=text)})
 
 
