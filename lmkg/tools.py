@@ -1,3 +1,6 @@
+import os
+import os.path as osp
+
 from SPARQLWrapper import JSON, SPARQLWrapper
 from transformers.utils import get_json_schema
 
@@ -21,7 +24,13 @@ class GraphDBConnector:
 
     def _get_query(self, query_name: str):
         if query_name not in self.queries_dict:
-            with open(f"queries/{query_name}.sparql", "r") as f:
+            current_dir = osp.dirname(osp.abspath(__file__))
+            query_path = osp.join(current_dir, "queries", f"{query_name}.sparql")
+            if not os.path.exists(query_path):
+                raise FileNotFoundError(f"Expected query file missing: "
+                                        f"{query_path}")
+
+            with open(query_path) as f:
                 self.queries_dict[query_name] = f.read()
         return self.queries_dict[query_name]
 
@@ -38,15 +47,15 @@ class GraphDBConnector:
         return result['boolean']
 
     @tool
-    def get_definition(self, unique_id: str):
-        """Retrieve definition of an entity or predicate given its unique identifier.
+    def get_entity_description(self, unique_id: str):
+        """Retrieve description of an entity given its unique identifier.
 
         Args:
             unique_id: Unique identifier of an entity or predicate.
         """
         if not self.id_in_graph(unique_id):
             raise ValueError(f"Identifier {unique_id} not found in the graph.")
-        query = self._get_query(self.get_definition.__name__)
+        query = self._get_query(self.get_entity_description.__name__)
         query = query.replace("s0", unique_id)
         return self.execute_query(query)
 
@@ -59,7 +68,19 @@ class GraphDBConnector:
         """
         query = self._get_query(self.search_entities.__name__)
         query = query.replace("q0", entity_query)
-        return self.execute_query(query)
+        query_results = self.execute_query(query)["results"]["bindings"]
+        output = []
+        for result in query_results:
+            uri = result["e"]["value"]
+            comment = result["shortComment"]["value"]
+            output.append({"entity_id": uri.split("/")[-1],
+                           "short_comment": comment})
+
+        if len(output) == 0:
+            return "No matches found."
+        else:
+            return output
+
 
     def search_predicates(self, predicate_query: str):
         """Find predicate identifiers that best match a given search query.
@@ -103,10 +124,5 @@ class GraphDBConnector:
 
 if __name__ == "__main__":
     db = GraphDBConnector("http://localhost:7200/repositories/wikidata5m")
-    db.search_entities("michael jordan")
-    db.search_entities("michael jordan")
-    db.search_entities("michael jordan")
-    db.search_entities("alma mater")
-    db.search_predicates("alma mater")
-    db.search_predicates("alma mater")
-    db.search_entities("michael jordan")
+    print(db.search_entities("michael jordan"))
+    print(db.get_entity_description("Q41421"))
