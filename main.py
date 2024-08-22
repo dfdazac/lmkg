@@ -11,7 +11,7 @@ from lmkg.utils import match_tool_call, get_template
 
 
 class Arguments(Tap):
-    model: Literal["Llama-3.1-8B",] = "Llama-3.1-8B"
+    model: Literal["Llama-3.1-8B", "Llama-3.1-70B"] = "Llama-3.1-8B"
     quantization: Literal["none", "8bit", "4bit"] = "none"
     graphdb_endpoint: str = "http://localhost:7200/repositories/wikidata5m"
 
