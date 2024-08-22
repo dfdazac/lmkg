@@ -1,8 +1,9 @@
 import torch
 from transformers import TextStreamer, pipeline
 from pprint import pprint
+import jinja2
 
-from lmkg.tools import GraphDBConnector
+from lmkg.tools import GraphDBTool, AnswerStoreTool
 from lmkg.utils import match_tool_call, get_template
 
 
@@ -12,22 +13,28 @@ pipe = pipeline(
     model_kwargs={"torch_dtype": torch.bfloat16},
     device="cuda",
 )
-chat_template = get_template("llama3")
+chat_template = get_template("llama3-kg")
 
-graphdb = GraphDBConnector("http://localhost:7200/repositories/wikidata5m")
+graphdb_tool = GraphDBTool("http://localhost:7200/repositories/wikidata5m")
+answer_tool = AnswerStoreTool()
 
 messages = []
 streamer = TextStreamer(pipe.tokenizer, skip_prompt=False)
 printed_system = False
 
-user_input = "Search for the definition of entity Q3308285."
-messages.append({"role": "user", "content": user_input})
+env = jinja2.Environment(loader=jinja2.PackageLoader("lmkg",
+                                                     "prompts"))
+prompt = env.get_template("entity_linking.jinja")
+
+text = "Some countries are leading the way in renewable wind power. With 58% of its electricity coming from turbines, Denmark’s wind production exceeds any other OEDC (Organisation for Economic Co-operation and Development) country per capita."
+messages.append({"role": "user", "content": prompt.render(text=text)})
+
 
 done = False
 while not done:
     inputs = pipe.tokenizer.apply_chat_template(
         messages,
-        tools=graphdb.tools_json,
+        tools=graphdb_tool.tools_json + answer_tool.tools_json,
         chat_template=chat_template,
         tokenize=False,
         add_generation_prompt=True
@@ -52,7 +59,17 @@ while not done:
         print("Calling function...")
         print(outputs)
         function_name, args, match_info = match
-        tool_result = getattr(graphdb, function_name)(**args)
+
+        tool = None
+        if hasattr(graphdb_tool, function_name):
+            tool = getattr(graphdb_tool, function_name)
+        elif hasattr(answer_tool, function_name):
+            tool = getattr(answer_tool, function_name)
+
+        if tool:
+            tool_result = tool(**args)
+        else:
+            tool_result = f"Tool {function_name} not found."
         if match_info:
             pprint(match_info)
             messages.append({"role": "ipython", "content": {"output": match_info}})
@@ -62,3 +79,7 @@ while not done:
     else:
         print(outputs)
         done = True
+
+print("*" * 50)
+print(text)
+print(answer_tool.answer)

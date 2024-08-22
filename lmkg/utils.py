@@ -24,6 +24,7 @@ def match_tool_call(text: str, format: str = "xml"):
     else:
         raise ValueError("Format must be either xml or json")
 
+    text = text.replace("\n", "")
     match = re.findall(regex, text)
     match_info = None
     if not match:

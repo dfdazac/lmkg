@@ -10,17 +10,20 @@ def tool(func):
     return func
 
 
-class GraphDBConnector:
-    def __init__(self, endpoint: str):
-        self.wrapper = SPARQLWrapper(endpoint)
-        self.wrapper.setReturnFormat(JSON)
-        self.queries_dict = dict()
-
+class Tool:
+    def __init__(self):
         self.tools_json = []
         for attr_name in dir(self):
             attribute = getattr(self, attr_name)
             if callable(attribute) and getattr(attribute, '_is_tool', False):
                 self.tools_json.append(get_json_schema(attribute))
+
+class GraphDBTool(Tool):
+    def __init__(self, endpoint: str):
+        super().__init__()
+        self.wrapper = SPARQLWrapper(endpoint)
+        self.wrapper.setReturnFormat(JSON)
+        self.queries_dict = dict()
 
     def _get_query(self, query_name: str):
         if query_name not in self.queries_dict:
@@ -46,12 +49,12 @@ class GraphDBConnector:
 
         return result['boolean']
 
-    @tool
+    # @tool
     def get_entity_description(self, entity_id: str):
         """Retrieve description of an entity given its unique identifier.
 
         Args:
-            entity_id: Unique identifier of an entity or predicate.
+            entity_id: Identifier of the entity in the knowledge graph.
         """
         if not self.id_in_graph(entity_id):
             raise ValueError(f"Identifier {entity_id} not found in the graph.")
@@ -127,7 +130,22 @@ class GraphDBConnector:
         raise NotImplementedError
 
 
+class AnswerStoreTool(Tool):
+    def __init__(self):
+        super().__init__()
+        self.answer = None
+
+    @tool
+    def submit_final_answer(self, answer: str):
+        """Submits the final answer to a user's question.
+
+        Args:
+            answer: Answer to be submitted.
+        """
+        self.answer = answer
+        return "Answer submitted."
+
 if __name__ == "__main__":
-    db = GraphDBConnector("http://localhost:7200/repositories/wikidata5m")
+    db = GraphDBTool("http://localhost:7200/repositories/wikidata5m")
     print(db.search_entities("michael jordan"))
     print(db.get_entity_description("Q41421"))

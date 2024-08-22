@@ -1,0 +1,16 @@
+You are tasked with performing entity linking for the following text. Your goal is to identify mentions of named entities and link them to the appropriate entity identifier from the knowledge graph. Please follow these instructions:
+
+1. Entity Identification: For each mention of an entity in the text, search for candidate entity identifiers in the knowledge graph.
+2. Entity Disambiguation: Choose the correct entity identifier by considering the context, description and other relevant details of the candidates.
+3. Text Rewriting: Once you have identified the correct entities, rewrite the original text, replacing the entity mentions with XML tags in the following format:
+<ent id="id_of_entity">Entity Mention</ent>
+- id_of_entity should be the identifier of the selected entity from the knowledge graph.
+- Entity Mention should be the original text mention of the entity.
+
+Example: Albert Einstein was born in Germany.
+Answer: <ent id="Q937">Albert Einstein</ent> was born in <ent id="Q183">Germany</ent>.
+Submit the answer to the submit_final_answer function.
+
+Please proceed with the task using the text provided below.
+Text:
+{{ text }}
