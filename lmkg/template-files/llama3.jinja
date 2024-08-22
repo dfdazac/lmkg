@@ -29,38 +29,21 @@
     {{- "Tools: " + builtin_tools | reject('equalto', 'code_interpreter') | join(", ") + "\n\n"}}
 {%- endif %}
 {{- "Cutting Knowledge Date: December 2023\n" }}
-{{- "Today Date: " + date_string + "\n\n" }}
-{%- if tools is not none and not tools_in_user_message %}
-    {{- "You have access to the following functions. To call a function, please respond with JSON for a function call." }}
-    {{- 'Respond in the format {"name": function name, "parameters": dictionary of argument name and its value}.' }}
-    {{- "Do not use variables.\n\n" }}
-    {%- for t in tools %}
-        {{- t | tojson(indent=4) }}
-        {{- "\n\n" }}
-    {%- endfor %}
-{%- endif %}
-{{- system_message }}
+{{- "Today Date: " + date_string + "\n" }}
 {{- "<|eot_id|>" }}
 
 {#- Custom tools are passed in a user message with some extra guidance #}
-{%- if tools_in_user_message and not tools is none %}
-    {#- Extract the first user message so we can plug it in here #}
-    {%- if messages | length != 0 %}
-        {%- set first_user_message = messages[0]['content']|trim %}
-        {%- set messages = messages[1:] %}
-    {%- else %}
-        {{- raise_exception("Cannot put tools in the first user message when there's no first user message!") }}
-{%- endif %}
+{%- if tools is not none %}
     {{- '<|start_header_id|>user<|end_header_id|>\n\n' -}}
-    {{- "Given the following functions, please respond with a JSON for a function call " }}
-    {{- "with its proper arguments that best answers the given prompt.\n\n" }}
-    {{- 'Respond in the format {"name": function name, "parameters": dictionary of argument name and its value}.' }}
-    {{- "Do not use variables.\n\n" }}
+    {{- "Answer the user's question by making use of the following functions if needed.\n" }}
+    {{- "If none of the functions can be used, please say so.\n" }}
+    {{- "Here is a list of functions in JSON format:\n\n" }}
     {%- for t in tools %}
         {{- t | tojson(indent=4) }}
         {{- "\n\n" }}
     {%- endfor %}
-    {{- first_user_message + "<|eot_id|>"}}
+    {{- "Return function calls in JSON format.\n" }}
+    {{- "<|eot_id|>" }}
 {%- endif %}
 
 {%- for message in messages %}
