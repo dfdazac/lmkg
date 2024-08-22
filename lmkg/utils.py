@@ -1,5 +1,14 @@
+import os
 import re
 import json
+
+
+def get_template(name: str):
+    """Get content of Jinja template from file"""
+    templates_dir = os.path.dirname(__file__)
+    template_path = os.path.join(templates_dir, 'templates', f'{name}.jinja')
+    with open(template_path, 'r') as f:
+        return f.read()
 
 def match_tool_call(text: str, format: str = "xml"):
     """Check if a string contains any tool call.

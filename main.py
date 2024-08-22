@@ -2,9 +2,8 @@ import torch
 from transformers import TextStreamer, pipeline
 from pprint import pprint
 
-from lmkg.templates import get_template
 from lmkg.tools import GraphDBConnector
-from lmkg.utils import match_tool_call
+from lmkg.utils import match_tool_call, get_template
 
 
 pipe = pipeline(
