@@ -47,17 +47,22 @@ class GraphDBConnector:
         return result['boolean']
 
     @tool
-    def get_entity_description(self, unique_id: str):
+    def get_entity_description(self, entity_id: str):
         """Retrieve description of an entity given its unique identifier.
 
         Args:
-            unique_id: Unique identifier of an entity or predicate.
+            entity_id: Unique identifier of an entity or predicate.
         """
-        if not self.id_in_graph(unique_id):
-            raise ValueError(f"Identifier {unique_id} not found in the graph.")
+        if not self.id_in_graph(entity_id):
+            raise ValueError(f"Identifier {entity_id} not found in the graph.")
         query = self._get_query(self.get_entity_description.__name__)
-        query = query.replace("s0", unique_id)
-        return self.execute_query(query)
+        query = query.replace("s0", entity_id)
+        query_result = self.execute_query(query)["results"]["bindings"][0]
+        output = dict()
+        output["entity_id"] = entity_id
+        output["description"] = query_result["comment"]["value"]
+        return output
+
 
     @tool
     def search_entities(self, entity_query: str):
