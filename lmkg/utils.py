@@ -1,6 +1,6 @@
+import json
 import os
 import re
-import json
 
 
 def get_template(name: str):

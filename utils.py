@@ -1,6 +1,8 @@
 from typing import Literal
-from transformers import pipeline, BitsAndBytesConfig, AwqConfig
+
 import torch
+from transformers import AwqConfig, BitsAndBytesConfig, pipeline
+
 
 class LlamaModels:
     LLAMA_31_8B = "Llama-3.1-8B"
