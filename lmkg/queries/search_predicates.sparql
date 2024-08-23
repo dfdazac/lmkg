@@ -1,10 +1,8 @@
 PREFIX wiki: <http://wikidata.org/wiki/>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
-SELECT ?e (SAMPLE(?l) AS ?firstLabel) WHERE {
+SELECT ?e ?label WHERE {
     ?e <http://www.ontotext.com/plugins/autocomplete#query> "q0" .
-    ?e rdfs:label ?l .
+    ?e rdfs:label ?label .
     FILTER (!STRSTARTS(STR(?e), STR(wiki:Q)))
 }
-GROUP BY ?e
-LIMIT 10

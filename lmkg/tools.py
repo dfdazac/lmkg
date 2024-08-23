@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import os
 import os.path as osp
 
@@ -89,16 +90,36 @@ class GraphDBTool(Tool):
         else:
             return output
 
-
+    @tool
     def search_predicates(self, predicate_query: str):
-        """Find predicate identifiers that best match a given search query.
+        """Find predicate identifiers with a label matching a predicate keyword.
 
         Args:
             predicate_query: Entity query to search for.
         """
         query = self._get_query(self.search_predicates.__name__)
         query = query.replace("q0", predicate_query)
-        return self.execute_query(query)
+        query_results = self.execute_query(query)["results"]["bindings"]
+
+        predicate_labels = dict()
+        for result in query_results:
+            uri = result["e"]["value"]
+            predicate_id = uri.split("/")[-1]
+            label = result["label"]["value"]
+            if predicate_id not in predicate_labels:
+                predicate_labels[predicate_id] = [label]
+            else:
+                predicate_labels[predicate_id].append(label)
+
+        output = []
+        for predicate, labels in predicate_labels.items():
+            output.append({"predicate_id": predicate,
+                           "labels": ", ".join(labels)})
+
+        if len(output) == 0:
+            return "No matches found."
+
+        return output
 
     def get_most_similar(self, unique_id: str):
         """Retrieve a list of entities or predicates that are semantically
