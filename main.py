@@ -1,5 +1,5 @@
 import torch
-from transformers import TextStreamer, pipeline, BitsAndBytesConfig
+from transformers import pipeline, BitsAndBytesConfig
 from pprint import pprint
 import jinja2
 from typing import Literal
@@ -8,32 +8,16 @@ from tap import Tap
 
 from lmkg.tools import GraphDBTool, AnswerStoreTool
 from lmkg.utils import match_tool_call, get_template
+from utils import LlamaModels, MODELS, get_model
 
 
 class Arguments(Tap):
-    model: Literal["Llama-3.1-8B", "Llama-3.1-70B"] = "Llama-3.1-8B"
-    quantization: Literal["none", "8bit", "4bit"] = "none"
+    model: MODELS = LlamaModels.LLAMA_31_8B
+    quantization: Literal["8bit", "4bit"] = None
     graphdb_endpoint: str = "http://localhost:7200/repositories/wikidata5m"
 
 def main(args: Arguments):
-    quantization_config = None
-    if args.quantization == "4bit":
-        quantization_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.float16
-        )
-    elif args.quantization == "8bit":
-        quantization_config = BitsAndBytesConfig(
-            load_in_8bit=True
-        )
-
-    pipe = pipeline(
-        "text-generation",
-        model=f"meta-llama/Meta-{args.model}-Instruct",
-        model_kwargs={"torch_dtype": torch.bfloat16,
-                      "quantization_config": quantization_config},
-        device="cuda" if args.quantization == "none" else None,
-    )
+    pipe = get_model(args.model, args.quantization)
     chat_template = get_template("llama3-kg")
 
     graphdb_tool = GraphDBTool(args.graphdb_endpoint)
