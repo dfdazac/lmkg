@@ -1,0 +1,9 @@
+PREFIX wiki: <http://wikidata.org/wiki/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT DISTINCT ?id (SUBSTR(?c, 1, 150) AS ?description) WHERE {
+    ?id wiki:p0 ?o .
+    ?id rdfs:comment ?c
+}
+ORDER BY RAND()
+LIMIT 10

@@ -28,12 +28,15 @@ def main(args: Arguments):
                                                          "prompts"))
     prompt = env.get_template("entity_linking.jinja")
 
-    text = ("Amsterdam is the Netherlands’ capital, known for its artistic "
-            "heritage elaborate canal system and narrow houses with gabled "
-            "facades, legacies of the city’s 17th-century Golden Age. Its"
-            "Museum District houses the Van Gogh Museum, works by Rembrandt "
-            "and Vermeer at the Rijksmuseum, and modern art at the Stedelijk.")
-    messages.append({"role": "user", "content": prompt.render(text=text)})
+    # text = ("Amsterdam is the Netherlands’ capital, known for its artistic "
+    #         "heritage elaborate canal system and narrow houses with gabled "
+    #         "facades, legacies of the city’s 17th-century Golden Age. Its"
+    #         "Museum District houses the Van Gogh Museum, works by Rembrandt "
+    #         "and Vermeer at the Rijksmuseum, and modern art at the Stedelijk.")
+    # messages.append({"role": "user", "content": prompt.render(text=text)})
+
+    text = "What are some predicates where Q1823 is an object?"
+    messages.append({"role": "user", "content": text})
 
     done = False
     while not done:

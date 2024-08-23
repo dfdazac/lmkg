@@ -1,4 +1,3 @@
-from collections import OrderedDict
 import os
 import os.path as osp
 
@@ -144,29 +143,75 @@ class GraphDBTool(Tool):
         similar to a given entity or predicate identifier."""
         raise NotImplementedError
 
-    def get_predicates_with_subject(self, predicate_id: str):
-        """Get a random list of predicates in which the given entity occurs as
-        a subject.
+    def _run_predicate_query(self, query):
+        query_result = self.execute_query(query)["results"]["bindings"]
+
+        output = []
+        for result in query_result:
+            uri = result["id"]["value"]
+            entity_id = uri.split("/")[-1]
+            label = result["description"]["value"]
+            output.append({"id": entity_id,
+                           "description": label})
+
+        return output
+
+    @tool
+    def get_predicates_with_subject(self, entity_id: str):
+        """Get a list of predicates in which the given entity occurs as a
+        subject.
 
         Args:
-            predicate_id: the ID of the
+            entity_id: the ID of the entity in the knowledge graph.
         """
-        raise NotImplementedError
+        if not self.id_in_graph(entity_id):
+            return f"Predicate {entity_id} not found in the graph."
+        query = self._get_query(self.get_predicates_with_subject.__name__)
+        query = query.replace("s0", entity_id)
+        return self._run_predicate_query(query)
 
-    def get_predicates_with_object(self, predicate_id: str):
-        """Get a random list of predicates in which the given entity occurs as
-        an object."""
-        raise NotImplementedError
+    @tool
+    def get_predicates_with_object(self, entity_id: str):
+        """Get a list of predicates in which the given entity occurs as a
+        subject.
 
-    def get_subject_entities(self, entity_id: str):
-        """Get a random list of predicates in which the given entity occurs as
-        a subject."""
-        raise NotImplementedError
+        Args:
+            entity_id: the ID of the entity in the knowledge graph.
+        """
+        if not self.id_in_graph(entity_id):
+            return f"Predicate {entity_id} not found in the graph."
 
-    def get_object_entities(self, entity_id: str):
-        """Get a random list of predicates in which the given entity occurs as
-        an object."""
-        raise NotImplementedError
+        query = self._get_query(self.get_predicates_with_object.__name__)
+        query = query.replace("s0", entity_id)
+        return self._run_predicate_query(query)
+
+    @tool
+    def get_subject_entities(self, predicate_id: str):
+        """Get a random list of entities that occur as subjects of the given
+        predicate identifier.
+
+        Args:
+            predicate_id: the ID of the predicate in the knowledge graph.
+        """
+        if not self.id_in_graph(predicate_id):
+            return f"Predicate {predicate_id} not found in the graph."
+        query = self._get_query(self.get_subject_entities.__name__)
+        query = query.replace("p0", predicate_id)
+        return self._run_predicate_query(query)
+
+    @tool
+    def get_object_entities(self, predicate_id: str):
+        """Get a random list of entities that occur as subjects of the given
+        predicate identifier.
+
+        Args:
+            predicate_id: the ID of the predicate in the knowledge graph.
+        """
+        if not self.id_in_graph(predicate_id):
+            return f"Predicate {predicate_id} not found in the graph."
+        query = self._get_query(self.get_object_entities.__name__)
+        query = query.replace("p0", predicate_id)
+        return self._run_predicate_query(query)
 
 
 class AnswerStoreTool(Tool):
