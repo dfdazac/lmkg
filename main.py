@@ -26,17 +26,13 @@ def main(args: Arguments):
 
     env = jinja2.Environment(loader=jinja2.PackageLoader("lmkg",
                                                          "prompts"))
-    prompt = env.get_template("entity_linking.jinja")
+    prompt = env.get_template("contradiction_generation.jinja")
 
-    # text = ("Amsterdam is the Netherlands’ capital, known for its artistic "
-    #         "heritage elaborate canal system and narrow houses with gabled "
-    #         "facades, legacies of the city’s 17th-century Golden Age. Its"
-    #         "Museum District houses the Van Gogh Museum, works by Rembrandt "
-    #         "and Vermeer at the Rijksmuseum, and modern art at the Stedelijk.")
-    # messages.append({"role": "user", "content": prompt.render(text=text)})
-
-    text = "What are some predicates where Q1823 is an object?"
-    messages.append({"role": "user", "content": text})
+    passage = "Amsterdam is the capital of the Netherlands."
+    triples = "[[Q727, P1376, Q55]]"
+    messages.append({"role": "user",
+                     "content": prompt.render(passage=passage,
+                                              triples=triples)})
 
     done = False
     while not done:
@@ -89,7 +85,6 @@ def main(args: Arguments):
             done = True
 
     print("*" * 50)
-    print(text)
     print(answer_tool.answer)
 
 
