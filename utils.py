@@ -1,6 +1,5 @@
-from enum import Enum
 from typing import Literal
-from transformers import pipeline, BitsAndBytesConfig
+from transformers import pipeline, BitsAndBytesConfig, AwqConfig
 import torch
 
 class LlamaModels:
@@ -39,6 +38,18 @@ def get_model(model_name: str, quantization: str = None):
             model_kwargs={"torch_dtype": torch.bfloat16,
                           "quantization_config": quantization_config},
             device="cuda" if not quantization else None,
+        )
+    elif model_name == LlamaModels.LLAMA_31_70B_AWQ:
+        quantization_config = AwqConfig(
+            bits=4
+        )
+        pipe = pipeline(
+            "text-generation",
+            model="hugging-quants/Meta-Llama-3.1-70B-Instruct-AWQ-INT4",
+            model_kwargs={"torch_dtype": torch.float16,
+                          "low_cpu_mem_usage": True,
+                          "quantization_config": quantization_config},
+            device="cuda"
         )
     else:
         raise ValueError(f"Unknown model: {model_name}")
