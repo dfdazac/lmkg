@@ -45,12 +45,12 @@ class GraphDBTool(Tool):
     def id_in_graph(self, identifier: str):
         """Check if a given URI exists in some triple in the KG."""
         query = self._get_query(self.id_in_graph.__name__)
-        query = query.replace("s0", identifier)
+        query = query.replace("id0", identifier)
         result = self.execute_query(query)
 
         return result['boolean']
 
-    # @tool
+    @tool
     def get_entity_description(self, entity_id: str):
         """Retrieve description of an entity given its unique identifier.
 
@@ -58,7 +58,7 @@ class GraphDBTool(Tool):
             entity_id: Identifier of the entity in the knowledge graph.
         """
         if not self.id_in_graph(entity_id):
-            raise ValueError(f"Identifier {entity_id} not found in the graph.")
+            return f"Entity {entity_id} not found in knowledge graph."
         query = self._get_query(self.get_entity_description.__name__)
         query = query.replace("s0", entity_id)
         query_result = self.execute_query(query)["results"]["bindings"][0]
@@ -67,6 +67,24 @@ class GraphDBTool(Tool):
         output["description"] = query_result["comment"]["value"]
         return output
 
+    @tool
+    def get_predicate_description(self, predicate_id: str):
+        """Retrieve description of an predicate given its unique identifier.
+
+        Args:
+            predicate_id: Identifier of the predicate in the knowledge graph.
+        """
+        if not self.id_in_graph(predicate_id):
+            return f"Predicate {predicate_id} not found in the graph."
+        query = self._get_query(self.get_predicate_description.__name__)
+        query = query.replace("s0", predicate_id)
+        query_result = self.execute_query(query)["results"]["bindings"]
+
+        output = dict()
+        output["predicate_id"] = predicate_id
+        output["labels"] = ", ".join(d["label"]["value"] for d in query_result)
+
+        return output
 
     @tool
     def search_entities(self, entity_query: str):
