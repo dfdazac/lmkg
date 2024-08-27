@@ -1,23 +1,34 @@
 from typing import Literal
 
 import torch
-from transformers import AwqConfig, BitsAndBytesConfig, pipeline
+from transformers import (AutoModelForCausalLM, AutoTokenizer,
+                          BitsAndBytesConfig, GenerationConfig)
 
 
 class LlamaModels:
     LLAMA_31_8B = "Llama-3.1-8B"
     LLAMA_31_70B = "Llama-3.1-70B"
-    LLAMA_31_70B_AWQ = "Llama-3.1-70B-AWQ"
 
 
 # noinspection PyTypeHints
 MODELS = Literal[
     LlamaModels.LLAMA_31_8B,
-    LlamaModels.LLAMA_31_70B,
-    LlamaModels.LLAMA_31_70B_AWQ
+    LlamaModels.LLAMA_31_70B
 ]
 
-def get_model(model_name: str, quantization: str = None):
+
+def get_model_and_tokenizer(model_name: str,
+                            quantization: str = None,
+                            skip_model: bool = False):
+    """Load a model and a tokenizer given their Hugging Face IDs. The model can
+    be skipped if needed, e.g. when running it over Text Generation Inference
+    and only the tokenizer is needed.
+
+    Args:
+        model_name: The name of the model to load.
+        quantization: The quantization kind to use, one of "4bit", "8bit"
+        skip_model: Whether to skip the model loading or not.
+    """
     if quantization is not None:
         if quantization not in ("4bit", "8bit"):
             raise ValueError("Quantization must be either '4bit' or '8bit'")
@@ -34,26 +45,17 @@ def get_model(model_name: str, quantization: str = None):
                 load_in_8bit=True
             )
 
-        pipe = pipeline(
-            "text-generation",
-            model=f"meta-llama/Meta-{model_name}-Instruct",
-            model_kwargs={"torch_dtype": torch.bfloat16,
-                          "quantization_config": quantization_config},
-            device="cuda" if not quantization else None,
-        )
-    elif model_name == LlamaModels.LLAMA_31_70B_AWQ:
-        quantization_config = AwqConfig(
-            bits=4
-        )
-        pipe = pipeline(
-            "text-generation",
-            model="hugging-quants/Meta-Llama-3.1-70B-Instruct-AWQ-INT4",
-            model_kwargs={"torch_dtype": torch.float16,
-                          "low_cpu_mem_usage": True,
-                          "quantization_config": quantization_config},
-            device="cuda"
-        )
+        model_id = f"meta-llama/Meta-{model_name}-Instruct"
+        model = None
+        if not skip_model:
+            model = AutoModelForCausalLM.from_pretrained(
+                model_id,
+                config=quantization_config,
+                torch_dtype=torch.bfloat16
+            )
+        tokenizer = AutoTokenizer.from_pretrained(model_id)
+        gen_config = GenerationConfig.from_pretrained(model_id)
+
+        return model, tokenizer, gen_config
     else:
         raise ValueError(f"Unknown model: {model_name}")
-
-    return pipe
