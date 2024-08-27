@@ -1,22 +1,36 @@
 import json
 import os
 import re
+from typing import Iterable
+
+import jinja2
+
+from .tools import Tool
 
 
-def get_template(name: str):
+def get_chat_template(name: str):
     """Get content of Jinja template from file"""
     templates_dir = os.path.dirname(__file__)
     template_path = os.path.join(templates_dir, 'templates', f'{name}.jinja')
     with open(template_path, 'r') as f:
         return f.read()
 
-def match_tool_call(text: str, format: str = "xml"):
-    """Check if a string contains any tool call.
+
+def build_task_input(task: str, task_kwargs: dict):
+    env = jinja2.Environment(loader=jinja2.PackageLoader("lmkg",
+                                                         "prompts"))
+    prompt = env.get_template(f"{task}.jinja")
+    return prompt.render(**task_kwargs)
+
+
+def parse_tool_call(text: str, format: str = "json"):
+    """Check if a string contains any tool call and parse its contents.
 
     Args:
-        text: The string to check.
-        format: The format used to parse the tool call. One of "xml", "json".
+        text: The string to check
+        format: The format used to parse the tool call. One of "xml", "json"
     """
+    # Check first if a call in either XLM or JSON format is found
     if format == "xml":
         regex = r"<function=(\w+)>(.*?)</function>"
     elif format == "json":
@@ -29,12 +43,41 @@ def match_tool_call(text: str, format: str = "xml"):
     match_info = None
     if not match:
         return None
-    else:
-        if len(match) > 1:
-            match_info = ("Only one function call is allowed. "
-                          "Executing the first one.")
 
-        function_name, args_string = match[0]
-        args = json.loads(args_string) if args_string else {}
+    if len(match) > 1:
+        match_info = ("Only one function call is allowed. "
+                      "Executing the first one.")
+
+    function_name, args_string = match[0]
+    args = json.loads(args_string) if args_string else {}
 
     return function_name, args, match_info
+
+
+def run_if_callable(text: str, tools: Iterable[Tool], format: str = "json"):
+    """
+    Run a tool if the input text contains a call to it. Only the first function
+    is executed.
+
+    Args:
+         text: The string optionally containing a tool call
+         tools: A list of tools to run if a match to their functions is found.
+            The order in the list determines priority when matching a function.
+         format: The format used to parse the tool call. One of "xml", "json"
+    """
+    result, match_info = None, None
+    if match := parse_tool_call(text, format):
+        function_name, function_args, match_info = match
+
+        function = None
+        result = None
+        for tool in tools:
+            if hasattr(tool, function_name):
+                function = getattr(tool, function_name)
+                result = function(**function_args)
+                break
+
+        if not function:
+            result = f"Tool {function_name} not found."
+
+    return result, match_info

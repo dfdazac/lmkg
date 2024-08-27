@@ -1,13 +1,12 @@
 from pprint import pprint
 from typing import Literal
 
-import jinja2
 import torch
 from huggingface_hub import InferenceClient
 from tap import Tap
 
 from lmkg.tools import AnswerStoreTool, GraphDBTool
-from lmkg.utils import get_template, match_tool_call
+from lmkg.utils import build_task_input, get_chat_template, run_if_callable
 from utils import MODELS, LlamaModels, get_model_and_tokenizer
 
 
@@ -22,14 +21,6 @@ class Arguments(Tap):
         self.add_argument("task")
 
 
-def build_task_input(args: Arguments):
-    task_kwargs = dict(arg.lstrip('--').split('=') for arg in args.extra_args)
-    env = jinja2.Environment(loader=jinja2.PackageLoader("lmkg",
-                                                         "prompts"))
-    prompt = env.get_template(f"{args.task}.jinja")
-    return prompt.render(**task_kwargs)
-
-
 def main(args: Arguments):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, tokenizer, gen_config = get_model_and_tokenizer(
@@ -39,18 +30,20 @@ def main(args: Arguments):
     )
     if model is not None:
         model = model.to(device)
+    client = None
     if args.inference_client:
         client = InferenceClient(args.inference_client)
 
-    chat_template = get_template("llama3-kg")
-
+    chat_template = get_chat_template("llama3-kg")
     graphdb_tool = GraphDBTool(args.graphdb_endpoint)
     answer_tool = AnswerStoreTool()
 
     messages = []
     printed_system = False
 
-    messages.append({"role": "user", "content": build_task_input(args)})
+    task_kwargs = dict(arg.lstrip('--').split('=') for arg in args.extra_args)
+    messages.append({"role": "user",
+                     "content": build_task_input(args.task, task_kwargs)})
 
     done = False
     while not done:
@@ -64,7 +57,7 @@ def main(args: Arguments):
             return_tensors="pt"
         )
 
-        if not args.inference_client:
+        if not client:
             inputs = inputs.to(device)
             input_length = inputs['input_ids'].shape[-1]
             outputs = model.generate(**inputs,
@@ -91,31 +84,21 @@ def main(args: Arguments):
             printed_system = True
 
         messages.append({"role": "assistant", "content": outputs})
+        print(outputs)
 
-        if match := match_tool_call(outputs, format="json"):
-            print("=" * 50)
-            print("Calling function...")
-            print(outputs)
-            function_name, function_args, match_info = match
-
-            tool = None
-            if hasattr(graphdb_tool, function_name):
-                tool = getattr(graphdb_tool, function_name)
-            elif hasattr(answer_tool, function_name):
-                tool = getattr(answer_tool, function_name)
-
-            if tool:
-                tool_result = tool(**function_args)
-            else:
-                tool_result = f"Tool {function_name} not found."
+        tool_result, match_info = run_if_callable(outputs,
+                                                  tools=[graphdb_tool,
+                                                         answer_tool])
+        if tool_result:
             if match_info:
                 pprint(match_info)
-                messages.append({"role": "ipython", "content": {"output": match_info}})
+                messages.append({"role": "ipython",
+                                 "content": {"output": match_info}})
+                
             pprint(tool_result)
-            messages.append({"role": "ipython", "content": {"output": tool_result}})
-            print("=" * 50)
+            messages.append({"role": "ipython",
+                             "content": {"output": tool_result}})
         else:
-            print(outputs)
             done = True
 
     print("*" * 50)
