@@ -12,10 +12,22 @@ from utils import MODELS, LlamaModels, get_model_and_tokenizer
 
 
 class Arguments(Tap):
+    task: str = "entity_linking"
     model: MODELS = LlamaModels.LLAMA_31_8B
     inference_client: str = None
     quantization: Literal["8bit", "4bit"] = None
     graphdb_endpoint: str = "http://localhost:7200/repositories/wikidata5m"
+
+    def configure(self):
+        self.add_argument("task")
+
+
+def build_task_input(args: Arguments):
+    task_kwargs = dict(arg.lstrip('--').split('=') for arg in args.extra_args)
+    env = jinja2.Environment(loader=jinja2.PackageLoader("lmkg",
+                                                         "prompts"))
+    prompt = env.get_template(f"{args.task}.jinja")
+    return prompt.render(**task_kwargs)
 
 
 def main(args: Arguments):
@@ -38,13 +50,7 @@ def main(args: Arguments):
     messages = []
     printed_system = False
 
-    env = jinja2.Environment(loader=jinja2.PackageLoader("lmkg",
-                                                         "prompts"))
-    prompt = env.get_template("entity_linking.jinja")
-
-    text = "Amsterdam is the capital of the Netherlands."
-    messages.append({"role": "user",
-                     "content": prompt.render(text=text)})
+    messages.append({"role": "user", "content": build_task_input(args)})
 
     done = False
     while not done:
@@ -116,4 +122,4 @@ def main(args: Arguments):
     print(answer_tool.answer)
 
 
-main(Arguments().parse_args())
+main(Arguments().parse_args(known_only=True))
