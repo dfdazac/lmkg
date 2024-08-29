@@ -124,5 +124,7 @@ def main(args: Arguments):
             print("*" * 50)
             print(answer_tool.answer)
 
+            break
+
 
 main(Arguments().parse_args(known_only=True))
