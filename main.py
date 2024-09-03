@@ -70,7 +70,8 @@ def main(args: Arguments):
                 inputs,
                 return_full_text=False,
                 max_new_tokens=512,
-                temperature=gen_config.do_sample,
+                do_sample=gen_config.do_sample,
+                temperature=gen_config.temperature,
                 top_k=gen_config.top_k,
                 top_p=gen_config.top_p,
                 details=False
