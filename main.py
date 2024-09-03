@@ -69,8 +69,7 @@ def main(args: Arguments):
             outputs = client.text_generation(
                 inputs,
                 return_full_text=False,
-                max_new_tokens=2048,
-                do_sample=gen_config.do_sample,
+                max_new_tokens=512,
                 temperature=gen_config.do_sample,
                 top_k=gen_config.top_k,
                 top_p=gen_config.top_p,
