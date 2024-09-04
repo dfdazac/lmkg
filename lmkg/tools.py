@@ -105,8 +105,7 @@ class GraphDBTool(Tool):
         for result in query_results:
             uri = result["e"]["value"]
             comment = result["shortComment"]["value"]
-            output.append({"entity_id": uri.split("/")[-1],
-                           "short_comment": comment})
+            output.append({uri.split("/")[-1]: comment})
 
         if len(output) == 0:
             return "No matches found."

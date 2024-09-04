@@ -78,7 +78,7 @@
     {%- elif message.role == "tool" or message.role == "ipython" %}
         {{- "<|start_header_id|>ipython<|end_header_id|>\n\n" }}
         {%- if message.content is mapping or message.content is iterable %}
-            {{- message.content | tojson(indent=4) }}
+            {{- message.content | tojson(indent=1) }}
         {%- else %}
             {{- message.content }}
         {%- endif %}
