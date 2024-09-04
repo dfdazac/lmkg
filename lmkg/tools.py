@@ -11,16 +11,22 @@ def tool(func):
 
 
 class Tool:
-    def __init__(self):
+    def __init__(self, functions: list[str]):
         self.tools_json = []
-        for attr_name in dir(self):
-            attribute = getattr(self, attr_name)
-            if callable(attribute) and getattr(attribute, '_is_tool', False):
-                self.tools_json.append(get_json_schema(attribute))
+        for fn_name in functions:
+            if hasattr(self, fn_name):
+                attribute = getattr(self, fn_name)
+                is_tool = getattr(attribute, '_is_tool', False)
+                if callable(attribute) and is_tool:
+                    self.tools_json.append(get_json_schema(attribute))
+                else:
+                    raise ValueError(f"Invalid function {fn_name}")
+            else:
+                raise ValueError(f"Unknown function {fn_name}")
 
 class GraphDBTool(Tool):
-    def __init__(self, endpoint: str):
-        super().__init__()
+    def __init__(self, functions: list[str], endpoint: str):
+        super().__init__(functions)
         self.wrapper = SPARQLWrapper(endpoint)
         self.wrapper.setReturnFormat(JSON)
         self.queries_dict = dict()
@@ -216,7 +222,7 @@ class GraphDBTool(Tool):
 
 class AnswerStoreTool(Tool):
     def __init__(self):
-        super().__init__()
+        super().__init__(functions=[self.submit_final_answer.__name__])
         self.answer = None
 
     @tool

@@ -1,0 +1,13 @@
+Your task is to extract triples from text. Each triple consists of a subject entity, a predicate, and an object entity.
+Each element in a triple must be associated with an identifier in the knowledge graph.
+If an entity or predicate is not found in the graph, you can skip the triple.
+Triples must be given in the following format:
+[subject:ID_s] [predicate:ID_p] [object:ID_o]
+
+Example:
+Text: Albert Einstein was born in Germany.
+Triples:
+[Albert Einstein:Q937] [birthplace:P19] [Germany:Q183]
+
+Please proceed with the task using the text provided below.
+Text: {{ text }}

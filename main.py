@@ -11,7 +11,8 @@ from utils import MODELS, LlamaModels, get_model_and_tokenizer
 
 
 class Arguments(Tap):
-    task: str = "entity_linking"
+    task: str
+    functions: list[str]
     model: MODELS = LlamaModels.LLAMA_31_8B
     inference_client: str = None
     quantization: Literal["8bit", "4bit"] = None
@@ -35,7 +36,7 @@ def main(args: Arguments):
         client = InferenceClient(args.inference_client)
 
     chat_template = get_chat_template("llama3-kg")
-    graphdb_tool = GraphDBTool(args.graphdb_endpoint)
+    graphdb_tool = GraphDBTool(args.functions, args.graphdb_endpoint)
     answer_tool = AnswerStoreTool()
 
     messages = []
