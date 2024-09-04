@@ -36,6 +36,7 @@
 {%- if tools is not none %}
     {{- '<|start_header_id|>user<|end_header_id|>\n\n' -}}
     {{- "You have access to a large knowledge graph of entities. Use the following functions to retrieve information from it and answer the user's questions.\n" }}
+    {{- "You may call only ONE function at a time. Wait for the response.\n" }}
     {%- for t in tools %}
         {{- t | tojson(indent=4) }}
         {{- "\n\n" }}
