@@ -2,13 +2,13 @@ You are tasked with performing entity linking for the following text. Your goal 
 
 1. Entity Identification: For each mention of an entity in the text, search for candidate entity identifiers in the knowledge graph.
 2. Entity Disambiguation: Choose the correct entity identifier by considering the context, description and other relevant details of the candidates.
-3. Text Rewriting: Once you have identified the correct entities, rewrite the original text, replacing the entity mentions with XML tags in the following format:
-<ent id="id_of_entity">Entity Mention</ent>
-- id_of_entity should be the identifier of the selected entity from the knowledge graph.
+3. Text Rewriting: Once you have identified the correct entities, rewrite the original text, adding tags in the following format:
+[Entity Mention](ENT_ID)
 - Entity Mention should be the original text mention of the entity.
+- ENT_ID should be the identifier of the selected entity from the knowledge graph.
 
 Example: Albert Einstein was born in Germany.
-Answer: <ent id="Q937">Albert Einstein</ent> was born in <ent id="Q183">Germany</ent>.
+Answer: [Albert Einstein](Q937) was born in [Germany](Q183).
 Submit the answer to the submit_final_answer function.
 
 Please proceed with the task using the text provided below.
