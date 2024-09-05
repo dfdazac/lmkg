@@ -15,3 +15,4 @@ dependencies:
       - sparqlwrapper==2.0.0
       - transformers==4.44.2
       - typed-argument-parser==1.10.1
+      - wandb==0.17.8
