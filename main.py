@@ -63,6 +63,9 @@ def main(args: Arguments):
                        answer,
                        trace)
         wandb.log({"results": table})
+    else:
+        print(trace)
+        print(answer)
 
 
 main(Arguments(explicit_bool=True).parse_args(known_only=True))
