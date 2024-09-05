@@ -40,8 +40,11 @@ def main(args: Arguments):
     )
 
     task_kwargs = dict(arg.lstrip('--').split('=') for arg in args.extra_args)
-    answer = agent.run(args.task, task_kwargs, args.max_responses, gen_config)
-    print(answer)
+    answer, trace = agent.run(args.task,
+                              task_kwargs,
+                              args.max_responses,
+                              gen_config)
+    print(trace)
 
 
 main(Arguments().parse_args(known_only=True))

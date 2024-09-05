@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 from typing import Iterable
@@ -81,3 +82,17 @@ def run_if_callable(text: str, tools: Iterable[Tool], format: str = "json"):
             result = f"Tool {function_name} not found."
 
     return result, match_info
+
+
+def get_logger():
+    """Get a default logger that includes a timestamp."""
+    logger = logging.getLogger('lmkg')
+    logger.handlers = []
+    ch = logging.StreamHandler()
+    str_fmt = '%(asctime)s - %(levelname)s - %(name)s - %(message)s'
+    formatter = logging.Formatter(str_fmt, datefmt='%H:%M:%S')
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+    logger.setLevel('INFO')
+
+    return logger
