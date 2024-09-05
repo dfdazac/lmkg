@@ -68,8 +68,7 @@ class GraphDBTool(Tool):
         query = query.replace("s0", entity_id)
         query_result = self.execute_query(query)["results"]["bindings"][0]
         output = dict()
-        output["entity_id"] = entity_id
-        output["description"] = query_result["comment"]["value"]
+        output[entity_id] = query_result["comment"]["value"]
         return output
 
     @tool
@@ -86,8 +85,7 @@ class GraphDBTool(Tool):
         query_result = self.execute_query(query)["results"]["bindings"]
 
         output = dict()
-        output["predicate_id"] = predicate_id
-        output["labels"] = ", ".join(d["label"]["value"] for d in query_result)
+        output[predicate_id] = ", ".join(d["label"]["value"] for d in query_result)
 
         return output
 
@@ -135,8 +133,7 @@ class GraphDBTool(Tool):
 
         output = []
         for predicate, labels in predicate_labels.items():
-            output.append({"predicate_id": predicate,
-                           "labels": ", ".join(labels)})
+            output.append({predicate: ", ".join(labels)})
 
         if len(output) == 0:
             return "No matches found."
@@ -156,8 +153,7 @@ class GraphDBTool(Tool):
             uri = result["id"]["value"]
             entity_id = uri.split("/")[-1]
             label = result["description"]["value"]
-            output.append({"id": entity_id,
-                           "description": label})
+            output.append({entity_id: label})
 
         return output
 
@@ -235,6 +231,18 @@ class AnswerStoreTool(Tool):
         return "Answer submitted."
 
 if __name__ == "__main__":
-    db = GraphDBTool("http://localhost:7200/repositories/wikidata5m")
-    print(db.search_entities("michael jordan"))
-    print(db.get_entity_description("Q41421"))
+    from pprint import pprint
+
+    tools = []
+    for obj in dir(GraphDBTool):
+        if hasattr(getattr(GraphDBTool, obj), "_is_tool"):
+            tools.append(obj)
+    db = GraphDBTool(tools, "http://localhost:7200/repositories/wikidata5m")
+    # pprint(db.search_entities("michael jordan"))
+    # pprint(db.get_entity_description("Q41421"))
+    pprint(db.get_predicate_description("P3279"))
+    # pprint(db.search_predicates("capital of"))
+    # pprint(db.get_predicates_with_object("Q41421"))
+    pprint(db.get_subject_entities("P3279"))
+    pprint(db.get_predicate_description("P3279"))
+    pprint(db.get_object_entities("P3279"))
