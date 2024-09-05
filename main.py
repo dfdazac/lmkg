@@ -14,6 +14,7 @@ class Arguments(Tap):
     inference_endpoint: str = None
     quantization: Literal["8bit", "4bit"] = None
     graphdb_endpoint: str = "http://localhost:7200/repositories/wikidata5m"
+    max_responses: int = 20
 
     def configure(self):
         self.add_argument("task")
@@ -39,7 +40,7 @@ def main(args: Arguments):
     )
 
     task_kwargs = dict(arg.lstrip('--').split('=') for arg in args.extra_args)
-    answer = agent(args.task, task_kwargs, gen_config)
+    answer = agent.run(args.task, task_kwargs, args.max_responses, gen_config)
     print(answer)
 
 
