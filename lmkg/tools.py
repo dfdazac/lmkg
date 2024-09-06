@@ -1,5 +1,6 @@
 import os
 import os.path as osp
+from typing import Union
 
 from SPARQLWrapper import JSON, SPARQLWrapper
 from transformers.utils import get_json_schema
@@ -11,8 +12,16 @@ def tool(func):
 
 
 class Tool:
-    def __init__(self, functions: list[str]):
+    def __init__(self, functions: Union[str, list[str]]):
         self.tools_json = []
+
+        if functions == "all":
+            functions = []
+            for obj_name in dir(self):
+                obj = getattr(self, obj_name)
+                if callable(obj) and hasattr(obj, "_is_tool"):
+                    functions.append(obj_name)
+
         for fn_name in functions:
             if hasattr(self, fn_name):
                 attribute = getattr(self, fn_name)
@@ -26,7 +35,7 @@ class Tool:
 
 
 class GraphDBTool(Tool):
-    def __init__(self, functions: list[str], endpoint: str):
+    def __init__(self, functions: Union[str, list[str]], endpoint: str):
         super().__init__(functions)
         self.wrapper = SPARQLWrapper(endpoint)
         self.wrapper.setReturnFormat(JSON)
@@ -220,7 +229,7 @@ class GraphDBTool(Tool):
 
 class AnswerStoreTool(Tool):
     def __init__(self):
-        super().__init__(functions=[self.submit_final_answer.__name__])
+        super().__init__(functions="all")
         self.answer = None
 
     @tool

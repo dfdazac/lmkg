@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import torch
 from huggingface_hub import InferenceClient
@@ -18,7 +18,8 @@ class LMKGAgent:
     local model inference and remote inference through an external endpoint.
 
     Args:
-        functions: A list of function names that use with the graph database
+        functions: A list of function names that use with the graph database,
+            or the string "all", to use all available functions.
         model: The pre-trained model to be used for local text generation.
             If None, external inference will be used.
         tokenizer: The tokenizer used for processing input and output to/from
@@ -29,7 +30,7 @@ class LMKGAgent:
         graphdb_endpoint: The URL endpoint for accessing the graph database.
     """
     def __init__(self,
-                 functions: list[str],
+                 functions: Union[str, list[str]],
                  model: Optional[PreTrainedModel],
                  tokenizer: PreTrainedTokenizer,
                  chat_template: str,
