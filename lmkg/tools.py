@@ -24,6 +24,7 @@ class Tool:
             else:
                 raise ValueError(f"Unknown function {fn_name}")
 
+
 class GraphDBTool(Tool):
     def __init__(self, functions: list[str], endpoint: str):
         super().__init__(functions)
@@ -34,7 +35,8 @@ class GraphDBTool(Tool):
     def _get_query(self, query_name: str):
         if query_name not in self.queries_dict:
             current_dir = osp.dirname(osp.abspath(__file__))
-            query_path = osp.join(current_dir, "queries", f"{query_name}.sparql")
+            query_path = osp.join(current_dir,
+                                  "queries", f"{query_name}.sparql")
             if not os.path.exists(query_path):
                 raise FileNotFoundError(f"Expected query file missing: "
                                         f"{query_path}")
@@ -112,7 +114,8 @@ class GraphDBTool(Tool):
 
     @tool
     def search_predicates(self, predicate_query: str):
-        """Find predicate identifiers with a label matching a predicate keyword.
+        """Find predicate identifiers with a label matching a predicate
+        keyword.
 
         Args:
             predicate_query: Entity query to search for.
@@ -229,6 +232,7 @@ class AnswerStoreTool(Tool):
         """
         self.answer = answer
         return "Answer submitted."
+
 
 if __name__ == "__main__":
     from pprint import pprint
