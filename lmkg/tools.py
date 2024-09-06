@@ -1,5 +1,7 @@
+import math
 import os
 import os.path as osp
+import random
 from typing import Union
 
 from SPARQLWrapper import JSON, SPARQLWrapper
@@ -198,6 +200,33 @@ class GraphDBTool(Tool):
         query = query.replace("s0", entity_id)
         return self._run_predicate_query(query)
 
+    def _execute_count_distinct(self, query: str, predicate_id: str):
+        query = query.replace("p0", predicate_id)
+        query_result = self.execute_query(query)["results"]["bindings"][0]
+        query_result = int(query_result["count"]["value"])
+
+        return query_result
+
+    def count_distinct_subjects(self, predicate_id: str):
+        query = self._get_query(self.count_distinct_subjects.__name__)
+        return self._execute_count_distinct(query, predicate_id)
+
+    def count_distinct_objects(self, predicate_id: str):
+        query = self._get_query(self.count_distinct_objects.__name__)
+        return self._execute_count_distinct(query, predicate_id)
+
+    def _execute_subject_or_object_query(self, query: str, predicate_id: str, num_results: int):
+        if not self.id_in_graph(predicate_id):
+            return f"Predicate {predicate_id} not found in the graph."
+
+        page_size = 5
+        num_pages = math.ceil(num_results / page_size)
+        random_page_idx = random.randint(0, num_pages - 1)
+        offset = random_page_idx * page_size
+        query = query.replace("p0", predicate_id)
+        query = query.replace("0000", f"{offset}")
+        return self._run_predicate_query(query)
+
     @tool
     def get_subject_entities(self, predicate_id: str):
         """Get a random list of entities that occur as subjects of the given
@@ -206,11 +235,9 @@ class GraphDBTool(Tool):
         Args:
             predicate_id: the ID of the predicate in the knowledge graph.
         """
-        if not self.id_in_graph(predicate_id):
-            return f"Predicate {predicate_id} not found in the graph."
+        num_subjects = self.count_distinct_subjects(predicate_id)
         query = self._get_query(self.get_subject_entities.__name__)
-        query = query.replace("p0", predicate_id)
-        return self._run_predicate_query(query)
+        return self._execute_subject_or_object_query(query, predicate_id, num_subjects)
 
     @tool
     def get_object_entities(self, predicate_id: str):
@@ -220,11 +247,9 @@ class GraphDBTool(Tool):
         Args:
             predicate_id: the ID of the predicate in the knowledge graph.
         """
-        if not self.id_in_graph(predicate_id):
-            return f"Predicate {predicate_id} not found in the graph."
+        num_objects = self.count_distinct_objects(predicate_id)
         query = self._get_query(self.get_object_entities.__name__)
-        query = query.replace("p0", predicate_id)
-        return self._run_predicate_query(query)
+        return self._execute_subject_or_object_query(query, predicate_id, num_objects)
 
 
 class AnswerStoreTool(Tool):
@@ -253,9 +278,16 @@ if __name__ == "__main__":
     db = GraphDBTool(tools, "http://localhost:7200/repositories/wikidata5m")
     # pprint(db.search_entities("michael jordan"))
     # pprint(db.get_entity_description("Q41421"))
-    pprint(db.get_predicate_description("P3279"))
+    # pprint(db.get_predicate_description("P3279"))
     # pprint(db.search_predicates("capital of"))
     # pprint(db.get_predicates_with_object("Q41421"))
-    pprint(db.get_subject_entities("P3279"))
-    pprint(db.get_predicate_description("P3279"))
-    pprint(db.get_object_entities("P3279"))
+    # pprint(db.get_subject_entities("P3279"))
+    # pprint(db.get_predicate_description("P3279"))
+    # pprint(db.get_object_entities("P3279"))
+
+    import time
+
+    start = time.time()
+    pprint(db.get_object_entities("P131"))
+    end = time.time()
+    print(f"Time taken: {end - start}")
