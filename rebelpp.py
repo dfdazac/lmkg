@@ -1,5 +1,6 @@
 import json
 from pprint import pformat
+import requests
 from typing import Literal
 
 import torch
@@ -76,12 +77,16 @@ def main(args: Arguments):
                 triples = "\n".join(triples)
 
                 task_kwargs = {"passage": passage, "triples": triples}
-                answer, trace = agent.run(
-                    args.task,
-                    task_kwargs,
-                    args.max_responses,
-                    gen_config
-                )
+                try:
+                    answer, trace = agent.run(
+                        args.task,
+                        task_kwargs,
+                        args.max_responses,
+                        gen_config
+                    )
+                except requests.exceptions.HTTPError as http_err:
+                    answer = "error"
+                    trace = ""
 
                 results_table.add_data(pformat(task_kwargs), answer, trace)
 
