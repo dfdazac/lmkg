@@ -3,7 +3,7 @@ You are given an input consisting of a passage and a set of triples that reflect
 - Make use of the functions available to you to solve the problem.
 - Triples are specified with one triple per line, and an element in a triple is specified as [label:id] where label is a short textual label, and id is the identifier in the knowledge graph
 - Only call one function at a time.
-- Submit your answer by calling the `submit_final_answer` function.
+- Submit your answer by calling the `submit_final_answer` function. If an answer contains multiple triples, use a single string with new line separators.
 
 Example:
 Passage: Albert Einstein was born in Germany.
@@ -16,4 +16,3 @@ Please proceed with the task using the following inputs:
 Passage: {{ passage }}
 Triples:
 {{ triples }}
-Before you start, write a short plan about how you wil generate the contradictions.
