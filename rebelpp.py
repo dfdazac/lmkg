@@ -17,6 +17,7 @@ class Arguments(Tap):
 
     graphdb_endpoint: str = "http://localhost:7200/repositories/wikidata5m"
     model: MODELS = LlamaModels.LLAMA_31_8B
+    task: str = "contradiction_generation"
     inference_endpoint: str = None
     quantization: Literal["8bit", "4bit"] = None
     max_responses: int = 20
@@ -76,7 +77,7 @@ def main(args: Arguments):
 
                 task_kwargs = {"passage": passage, "triples": triples}
                 answer, trace = agent.run(
-                    "contradiction_generation",
+                    args.task,
                     task_kwargs,
                     args.max_responses,
                     gen_config
