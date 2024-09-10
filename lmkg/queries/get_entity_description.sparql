@@ -1,6 +1,6 @@
 PREFIX wiki: <http://wikidata.org/wiki/>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
-SELECT ?comment WHERE {
-    wiki:s0 rdfs:comment ?comment .
+SELECT (SUBSTR(?c, 1, 300) AS ?comment) WHERE {
+    wiki:s0 rdfs:comment ?c .
 }
