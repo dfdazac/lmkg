@@ -162,12 +162,12 @@ class GraphDBTool(Tool):
     def _run_predicate_query(self, query):
         query_result = self.execute_query(query)["results"]["bindings"]
 
-        output = []
+        output = dict()
         for result in query_result:
             uri = result["id"]["value"]
             entity_id = uri.split("/")[-1]
             label = result["description"]["value"]
-            output.append({entity_id: label})
+            output[entity_id] = label
 
         return output
 
