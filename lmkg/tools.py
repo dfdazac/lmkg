@@ -112,11 +112,11 @@ class GraphDBTool(Tool):
         query = self._get_query(self.search_entities.__name__)
         query = query.replace("q0", entity_query)
         query_results = self.execute_query(query)["results"]["bindings"]
-        output = []
+        output = dict()
         for result in query_results:
             uri = result["e"]["value"]
             comment = result["shortComment"]["value"]
-            output.append({uri.split("/")[-1]: comment})
+            output[uri.split("/")[-1]] = comment
 
         if len(output) == 0:
             return "No matches found."
@@ -145,9 +145,9 @@ class GraphDBTool(Tool):
             else:
                 predicate_labels[predicate_id].append(label)
 
-        output = []
+        output = dict()
         for predicate, labels in predicate_labels.items():
-            output.append({predicate: ", ".join(labels)})
+            output[predicate] = ", ".join(labels)
 
         if len(output) == 0:
             return "No matches found."
