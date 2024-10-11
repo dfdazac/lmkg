@@ -278,16 +278,16 @@ if __name__ == "__main__":
     db = GraphDBTool(tools, "http://localhost:7200/repositories/wikidata5m")
     # pprint(db.search_entities("michael jordan"))
     # pprint(db.get_entity_description("Q41421"))
-    # pprint(db.get_predicate_description("P3279"))
+    pprint(db.get_predicate_description("P31"))
     # pprint(db.search_predicates("capital of"))
     # pprint(db.get_predicates_with_object("Q41421"))
     # pprint(db.get_subject_entities("P3279"))
     # pprint(db.get_predicate_description("P3279"))
     # pprint(db.get_object_entities("P3279"))
 
-    import time
-
-    start = time.time()
-    pprint(db.get_object_entities("P131"))
-    end = time.time()
-    print(f"Time taken: {end - start}")
+    # import time
+    #
+    # start = time.time()
+    # pprint(db.get_object_entities("P131"))
+    # end = time.time()
+    # print(f"Time taken: {end - start}")
