@@ -1,0 +1,107 @@
+You are tasked with analyzing an input text and determining how the knowledge graph needs to be updated according to it.
+The operations are defined as functions in JSON format as follows:
+
+{
+    "type": "operation",
+    "operation": {
+        "name": "add_new_entity",
+        "description": "Add an entity that does not exist in the graph yet, specifying the name and a short description.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Canonical name for the new entity."
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Short description of the entity."
+                }
+            }
+        }
+    }
+}
+
+{
+    "type": "operation",
+    "operation": {
+        "name": "add_new_relation_type",
+        "description": "Add a relation type that does not exist in the graph yet, specifying the name and a short description.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Canonical name for the new entity."
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Short description of the entity."
+                }
+            }
+        }
+    }
+}
+
+{
+    "type": "operation",
+    "operation": {
+        "name": "add_new_triple",
+        "description": "Add a new triple formed by a subject, predicate, and object, each specified using their identifier in the KG.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "subject_id": {
+                    "type": "string",
+                    "description": "Identifier of the subject entity."
+                },
+                "predicate_id": {
+                    "type": "string",
+                    "description": "Identifier of the predicate relation."
+                },
+                "object_id": {
+                    "type": "string",
+                    "description": "Identifier of the entity."
+                }
+            }
+        }
+    }
+}
+
+{
+    "type": "operation",
+    "operation": {
+        "name": "remove_triple",
+        "description": "Remove an existing triple specified by a subject, predicate, and object, each specified using their identifier in the KG.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "subject_id": {
+                    "type": "string",
+                    "description": "Identifier of the subject entity."
+                },
+                "predicate_id": {
+                    "type": "string",
+                    "description": "Identifier of the predicate relation."
+                },
+                "object_id": {
+                    "type": "string",
+                    "description": "Identifier of the entity."
+                }
+            }
+        }
+    }
+}
+
+Make use of the functions available to you to inspect the KG and determine what operations are needed. Then submit the answer as a list of operations (one per line) and their arguments, passing it to the `submit_final_answer` function.
+
+The following is a hypothetical input, what is expected when inspecting the KG through function calls, and the final answer.
+Input: After careful deliberation, the court has decided that Amsterdam will cease to be the capital of the Netherlands, and its role will be replaced by the new village of Cortelande.
+KG inspection: It will be found that the entities "Amsterdam", "The Netherlands", and the predicate "capital of" exist in the KG, and they have identifiers Q727, Q55, and P1376, correspondingly. It will be found that the triple (Q727, P1376, Q55) is in the KG, and it needs to be removed because the text states a change in the relation, since the village of Cortelande is the new capital. Furthermore, Cortelande does not exist in the KG, so a new entity needs to be created for it. It is assigned identifier Q0, and a new triple is added to reflect the new capital of the Netherlands as Cortelande.
+Answer:
+{"type": "operation", "name": "remove_triple", "parameters": {"subject_id": "Q727", "predicate_id": "P1376", "subject_id": "Q55"}}
+{"type": "operation", "name": "add_new_entity", "parameters": {"name": "Cortelande", "description": "A village in the Netherlands."}}
+{"type": "operation", "name": "add_new_triple", "parameters": {"subject_id": "Q0", "predicate_id": "P1376", "subject_id": "Q55"}}
+
+You may now proceed with the task using the following input:
+Input: {{ input }}
