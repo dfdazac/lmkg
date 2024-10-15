@@ -251,6 +251,26 @@ class GraphDBTool(Tool):
         query = self._get_query(self.get_object_entities.__name__)
         return self._execute_subject_or_object_query(query, predicate_id, num_objects)
 
+    @tool
+    def triple_in_graph(self, subject_id: str, predicate_id: str, object_id: str):
+        """
+        Check if a triple exists in the knowledge graph, specifying the IDs of
+        the subject, predicate, and object.
+
+        Args:
+            subject_id: the ID of the subject in the knowledge graph.
+            predicate_id: the ID of the predicate in the knowledge graph.
+            object_id: the ID of the object in the knowledge graph.
+        """
+        query = self._get_query(self.triple_in_graph.__name__)
+
+        query = query.replace("id0", subject_id)
+        query = query.replace("id1", predicate_id)
+        query = query.replace("id2", object_id)
+        result = self.execute_query(query)
+
+        return result['boolean']
+
 
 class AnswerStoreTool(Tool):
     def __init__(self):

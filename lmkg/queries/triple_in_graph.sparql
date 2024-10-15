@@ -1,0 +1,5 @@
+PREFIX wiki: <http://wikidata.org/wiki/>
+
+ASK {
+    wiki:id0 wiki:id1 wiki:id2
+}
