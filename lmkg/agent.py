@@ -128,6 +128,7 @@ class LMKGAgent:
                     top_p=gen_config.top_p,
                     details=False
                 )
+                print(outputs)
             else:
                 # Generating from local model
                 inputs = inputs.to(device)
