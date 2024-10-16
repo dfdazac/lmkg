@@ -2,7 +2,7 @@ from typing import Any, Optional, Union
 
 import torch
 from huggingface_hub import InferenceClient
-from transformers import PreTrainedModel, PreTrainedTokenizer
+from transformers import PreTrainedModel, PreTrainedTokenizer, TextStreamer
 
 from .tools import AnswerStoreTool, GraphDBTool
 from .utils import (build_task_input, get_chat_template, get_logger,
@@ -98,6 +98,8 @@ class LMKGAgent:
         self.messages = []
         self._append_message("user", task_prompt)
 
+        streamer = TextStreamer(self.tokenizer, skip_prompt=False)
+
         done = False
         num_responses = 0
         inputs = ""
@@ -134,7 +136,9 @@ class LMKGAgent:
                     **inputs,
                     max_new_tokens=2048,
                     pad_token_id=self.tokenizer.eos_token_id,
-                    generation_config=gen_config)
+                    generation_config=gen_config,
+                    streamer=streamer,
+                )
 
                 outputs = self.tokenizer.decode(outputs[0][input_length:])
 
