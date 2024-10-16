@@ -150,7 +150,7 @@ class LMKGAgent:
                 outputs,
                 tools=[self.graphdb, answer_store]
             )
-            if tool_result:
+            if tool_result is not None:
                 if match_info:
                     self._append_message("ipython",
                                          {"output": match_info})
