@@ -75,7 +75,10 @@ def run_if_callable(text: str, tools: Iterable[Tool], format: str = "json"):
         for tool in tools:
             if hasattr(tool, function_name):
                 function = getattr(tool, function_name)
-                result = function(**function_args)
+                try:
+                    result = function(**function_args)
+                except Exception as e:
+                    result = str(e)
                 break
 
         if not function:
