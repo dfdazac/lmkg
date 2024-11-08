@@ -9,7 +9,7 @@ from tqdm import tqdm
 import wandb
 
 from lmkg.agent import LMKGAgent
-from utils import MODELS, LlamaModels, get_model_and_tokenizer
+from utils import get_model_and_tokenizer
 
 
 class Arguments(Tap):
@@ -17,7 +17,7 @@ class Arguments(Tap):
     num_samples: int = 1
 
     graphdb_endpoint: str = "http://localhost:7200/repositories/wikidata5m"
-    model: MODELS = LlamaModels.LLAMA_31_8B
+    model_id: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
     task: str = "contradiction_generation"
     inference_endpoint: str = None
     quantization: Literal["8bit", "4bit"] = None
@@ -32,7 +32,7 @@ class Arguments(Tap):
 def main(args: Arguments):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, tokenizer, gen_config = get_model_and_tokenizer(
-        args.model,
+        args.model_id,
         args.quantization,
         skip_model=args.inference_endpoint is not None
     )
