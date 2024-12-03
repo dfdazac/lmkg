@@ -173,8 +173,7 @@ class GraphDBTool(Tool):
 
     @tool
     def get_predicates_with_subject(self, entity_id: str):
-        """Get a list of predicates in which the given entity occurs as a
-        subject.
+        """Get a list of predicates in which the given entity occurs as a subject.
 
         Args:
             entity_id: the ID of the entity in the knowledge graph.
@@ -187,8 +186,7 @@ class GraphDBTool(Tool):
 
     @tool
     def get_predicates_with_object(self, entity_id: str):
-        """Get a list of predicates in which the given entity occurs as a
-        subject.
+        """Get a list of predicates in which the given entity occurs as a subject.
 
         Args:
             entity_id: the ID of the entity in the knowledge graph.
@@ -229,8 +227,7 @@ class GraphDBTool(Tool):
 
     @tool
     def get_subject_entities(self, predicate_id: str):
-        """Get a random list of entities that occur as subjects of the given
-        predicate identifier.
+        """Get a random list of entities that occur as subjects of the given predicate identifier.
 
         Args:
             predicate_id: the ID of the predicate in the knowledge graph.
@@ -241,8 +238,7 @@ class GraphDBTool(Tool):
 
     @tool
     def get_object_entities(self, predicate_id: str):
-        """Get a random list of entities that occur as subjects of the given
-        predicate identifier.
+        """Get a random list of entities that occur as objects of the given predicate identifier.
 
         Args:
             predicate_id: the ID of the predicate in the knowledge graph.
