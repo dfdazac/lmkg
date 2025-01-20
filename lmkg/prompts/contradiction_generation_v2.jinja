@@ -1,0 +1,23 @@
+You are given an input consisting of a passage and a set of triples that reflect the information in the passage. Your task is to generate a new set of triples that contradict the input and conform to the schema of an existing knowledge graph.
+
+Example:
+Passage: Salah Bouchaour is a town and commune in Skikda Province in north-eastern Algeria.
+Triples:
+[Salah Bouchaour:Q1650111] [instance of:P31] [Communes of Algeria:Q2989398]
+[Skikda Province:Q234227] [country:P17] [Algeria:Q262]
+[Algeria:Q262] [contains administrative territorial entity:P150] [Skikda Province:Q234227]
+Contradicting triples:
+[Salah Bouchaour:Q1650111] [instance of:P31] [Commune of France:Q484170]
+[Skikda Province:Q234227] [country:P17] [France:Q142]
+[France:Q142] [contains administrative territorial entity:P150] [Skikda Province:Q234227]
+
+**Please follow these instructions:**
+- Make use of the functions available to interact with the knowledge graph and retrieve valid entity and predicate identifiers.
+- Your answer can only contain entities and predicates mentioned during the interaction with the knowledge graph.
+- Only call one function at a time.
+- Submit your answer by calling the `submit_final_answer` function. If an answer contains multiple triples, use a single string with new line separators.
+
+Please proceed with the task using the following inputs:
+Passage: {{ passage }}
+Triples:
+{{ triples }}
