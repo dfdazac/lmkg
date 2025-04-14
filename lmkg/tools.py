@@ -42,6 +42,7 @@ class GraphDBTool(Tool):
         self.wrapper = SPARQLWrapper(endpoint)
         self.wrapper.setReturnFormat(JSON)
         self.queries_dict = dict()
+        self.session_ids = set()
 
     def _get_query(self, query_name: str):
         if query_name not in self.queries_dict:
@@ -55,6 +56,9 @@ class GraphDBTool(Tool):
             with open(query_path) as f:
                 self.queries_dict[query_name] = f.read()
         return self.queries_dict[query_name]
+
+    def clear_session_ids(self):
+        self.session_ids = set()
 
     def execute_query(self, query: str):
         self.wrapper.setQuery(query)
@@ -82,6 +86,7 @@ class GraphDBTool(Tool):
         query_result = self.execute_query(query)["results"]["bindings"][0]
         output = dict()
         output[entity_id] = query_result["comment"]["value"]
+        self.session_ids.add(entity_id)
         return output
 
     @tool
@@ -100,9 +105,11 @@ class GraphDBTool(Tool):
         output = dict()
         output[predicate_id] = ", ".join(d["label"]["value"] for d in query_result)
 
+        self.session_ids.add(predicate_id)
+
         return output
 
-    @tool
+    #@tool
     def search_entities(self, entity_query: str):
         """Find entity identifiers that best match a given search query.
 
@@ -123,7 +130,7 @@ class GraphDBTool(Tool):
         else:
             return output
 
-    @tool
+    #@tool
     def search_predicates(self, predicate_query: str):
         """Find predicate identifiers with a label matching a predicate
         keyword.
@@ -168,6 +175,8 @@ class GraphDBTool(Tool):
             entity_id = uri.split("/")[-1]
             label = result["description"]["value"]
             output[entity_id] = label
+
+            self.session_ids.add(entity_id)
 
         return output
 
@@ -251,6 +260,9 @@ class GraphDBTool(Tool):
 class AnswerStoreTool(Tool):
     def __init__(self):
         super().__init__(functions="all")
+        self.answer = None
+
+    def clear_answer(self):
         self.answer = None
 
     @tool
