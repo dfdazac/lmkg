@@ -1,9 +1,0 @@
-PREFIX wiki: <http://wikidata.org/wiki/>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-
-SELECT ?id (GROUP_CONCAT(DISTINCT ?label; separator=", ") AS ?description) WHERE {
-    wiki:s0 ?id ?o .
-    FILTER(STRSTARTS(STR(?id), STR(wiki:)))
-    OPTIONAL { ?id rdfs:label ?label }
-}
-GROUP BY ?id

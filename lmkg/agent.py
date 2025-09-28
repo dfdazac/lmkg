@@ -1,12 +1,12 @@
-from typing import Any, Optional, Union, Callable
+import asyncio
+from typing import Any, Callable, Optional
 
-import torch
-from huggingface_hub import InferenceClient
-from transformers import PreTrainedModel, PreTrainedTokenizer
+from langchain_openai import ChatOpenAI
+from langgraph.prebuilt import create_react_agent, ToolNode
+import pydantic
 
 from .tools import AnswerStoreTool, GraphDBTool
-from .utils import (build_task_input, get_chat_template, get_logger,
-                    run_if_callable)
+from .utils import build_task_input
 
 
 class LMKGAgent:
@@ -14,64 +14,54 @@ class LMKGAgent:
     An agent designed to interact with a pre-trained language model and a
     knowledge graph database (GraphDB). It facilitates the generation of
     text-based responses using a language model and integrates with tools to
-    process and retrieve information from a knowledge graph. It supports both
-    local model inference and remote inference through an external endpoint.
+    process and retrieve information from a knowledge graph.
 
     Args:
-        functions: A list of function names that use with the graph database,
-            or the string "all", to use all available functions.
-        model: The pre-trained model to be used for local text generation.
-            If None, external inference will be used.
-        tokenizer: The tokenizer used for processing input and output to/from
-            the model.
-        chat_template: A string that specifies the chat format template.
-        inference_endpoint: The URL of the inference endpoint for remote
-            generation. If None, the local model will be used instead.
-        graphdb_endpoint: The URL endpoint for accessing the graph database.
+        functions (list[str]): A list of function names to use with the graph database,
+            or the string "all" to use all available functions.
+        graphdb_endpoint (str): The URL endpoint for accessing the graph database.
+        timeout (int, optional): The maximum time in seconds to allow for agent execution.
+        recursion_limit (int, optional): The maximum recursion depth for the agent's execution.
     """
     def __init__(self,
-                 functions: Union[str, list[str]],
-                 model: Optional[PreTrainedModel],
-                 tokenizer: PreTrainedTokenizer,
-                 chat_template: str,
-                 inference_endpoint: Optional[str],
-                 graphdb_endpoint: str):
-        if not model and not inference_endpoint:
-            raise ValueError("Either model or inference_endpoint must be "
-                             "specified.")
-        self.model = model
-        self.tokenizer = tokenizer
-        self.inference_client = None
-        if inference_endpoint:
-            self.inference_client = InferenceClient(inference_endpoint)
+                 functions: list[str],
+                 graphdb_endpoint: str,
+                 answer_parser: Callable[[str], tuple[Any, set[str]]] = None,
+                 timeout: int = None,
+                 recursion_limit: int = None):
         self.graphdb_endpoint = graphdb_endpoint
+        self.graphdb = GraphDBTool(graphdb_endpoint, functions)
+        self.answer_store = AnswerStoreTool(self.graphdb, answer_parser)
+        tool_list = self.graphdb.tools + self.answer_store.tools
 
-        self.chat_template = get_chat_template(chat_template)
-        self.graphdb = GraphDBTool(functions, graphdb_endpoint)
+        model = ChatOpenAI(
+            model="nf-gpt-4o-mini",
+            temperature=0,
+            max_retries=2,
+            base_url="https://ai-research-proxy.azurewebsites.net",
+        )
+        model = model.bind_tools(tool_list, parallel_tool_calls=False)
+        tools = ToolNode(tool_list, handle_tool_errors=(pydantic.ValidationError,))
+        self.agent = create_react_agent(model, tools)
 
-        self.messages = []
+        self.timeout = timeout
+        self.recursion_limit = recursion_limit
 
-    def _append_message(self, role: str, content: Any):
-        """
-        Appends a message to the conversation history with a given role and
-        content.
-
-        Args:
-            role: The role of the message sender.
-            content: The content of the message, which can be a string or any
-                object depending on the role.
-        """
-        self.messages.append({
-            "role": role,
-            "content": content
-        })
+    async def _invoke_agent(self, agent, prompt):
+        response = await asyncio.wait_for(
+            agent.ainvoke(
+                input={"messages": [{"role": "user", "content": prompt}]},
+                config={"recursion_limit": self.recursion_limit},
+            ),
+            timeout=self.timeout
+        )
+        return response
 
     def run(self,
             task: str,
             task_kwargs: dict[str, str],
-            max_responses: int,
-            gen_config,
-            hallucination_callback: Callable[[str], tuple[set[str], set[str]]] = None
+            initial_ids: set[str] = None,
+            check_initial_ids: bool = False,
             ) -> tuple[Optional[str], str]:
         """
         Executes the agent's main task loop. It generates a response based on
@@ -82,115 +72,24 @@ class LMKGAgent:
             task: The name or description of the task the agent should perform.
             task_kwargs: A dictionary of keyword arguments to further specify
                 the task parameters.
-            max_responses: The maximum number of responses allowed before
-                stopping generation.
-            gen_config: A configuration object specifying generation parameters
-                such as `do_sample`, `temperature`, `top_k`, and `top_p`.
-            hallucination_callback: (optional) A function that parses the final answer and returns a set of entity
-                and predicate IDs. This is used to check that the answer only contains identifiers observed by the
-                graph tool in each interaction, and not "hallucinated" identifiers.
+            initial_ids: Initial KG identifiers to allow during hallucination detection
+            check_initial_ids: Whether to check if the initial IDs are valid
 
         Returns:
             The final answer generated by the agent after iterating through the
                 conversation and tool results.
         """
-        logger = get_logger()
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        answer_store = AnswerStoreTool()
+        if not self.graphdb.is_alive():
+            raise ConnectionError("GraphDB is not running!")
+        
+        if check_initial_ids:
+            for id in initial_ids:
+                self.graphdb.check_id_in_graph(id)
 
-        # Build system prompt, tool definition prompt, and task description
-        task_prompt = build_task_input(task, task_kwargs)
-        self.messages = []
-        self._append_message("user", task_prompt)
-
-        done = False
-        num_responses = 0
-        inputs = ""
-        outputs = ""
-        answer = ""
-        # Generation loop
+        self.answer_store.initialize(initial_ids)
         self.graphdb.clear_session_ids()
-        while not done:
-            inputs = self.tokenizer.apply_chat_template(
-                self.messages,
-                tools=self.graphdb.tools_json + answer_store.tools_json,
-                chat_template=self.chat_template,
-                tokenize=self.inference_client is None,
-                add_generation_prompt=True,
-                return_dict=self.inference_client is None,
-                return_tensors="pt"
-            )
-            try:
-                if self.inference_client:
-                    # Generating from TGI endpoint
-                    outputs = self.inference_client.text_generation(
-                        inputs,
-                        return_full_text=False,
-                        max_new_tokens=512,
-                        do_sample=gen_config.do_sample,
-                        temperature=gen_config.temperature,
-                        top_k=gen_config.top_k,
-                        top_p=gen_config.top_p,
-                        details=False
-                    )
-                else:
-                    # Generating from local model
-                    inputs = inputs.to(device)
-                    input_length = inputs['input_ids'].shape[-1]
-                    outputs = self.model.generate(
-                        **inputs,
-                        max_new_tokens=2048,
-                        pad_token_id=self.tokenizer.eos_token_id,
-                        generation_config=gen_config)
 
-                    outputs = self.tokenizer.decode(outputs[0][input_length:])
-            except Exception as e:
-                answer = str(e)
-                break
+        task_prompt = build_task_input(task, task_kwargs)
+        response = asyncio.run(self._invoke_agent(self.agent, task_prompt))
 
-            num_responses += 1
-
-            self._append_message("assistant", outputs)
-
-            tool_result, match_info = run_if_callable(
-                outputs,
-                tools=[self.graphdb, answer_store]
-            )
-            if tool_result:
-                if match_info:
-                    self._append_message("ipython",
-                                         {"output": match_info})
-                self._append_message("ipython",
-                                     {"output": tool_result})
-            elif answer_store.answer is None:
-                self._append_message("user",
-                                     "You forgot to submit the answer!")
-            else:
-                done = True
-                answer = answer_store.answer
-                if hallucination_callback:
-                    try:
-                        ids_in_answer, initial_ids = hallucination_callback(answer)
-                    except Exception as e:
-                        self._append_message("user", str(e))
-                        answer_store.clear_answer()
-                        done = False
-                    else:
-                        observed_ids = self.graphdb.session_ids.union(initial_ids)
-                        hallucinated_ids = ids_in_answer.difference(observed_ids)
-                        if hallucinated_ids:
-                            self._append_message("user",
-                                                 f"The answer contains identifiers that were not retrieved "
-                                                 f"by any function: {', '.join(hallucinated_ids)}. Please try again.")
-                            answer_store.clear_answer()
-                            done = False
-
-            if num_responses == max_responses:
-                logger.warn("Max number of responses reached!")
-                break
-
-        if not self.inference_client:
-            inputs = self.tokenizer.decode(inputs['input_ids'][0])
-        trace = inputs + outputs
-
-        return answer, trace
+        return self.answer_store.answer, response

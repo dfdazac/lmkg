@@ -1,6 +1,7 @@
 PREFIX wiki: <http://wikidata.org/wiki/>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
-SELECT (COUNT(DISTINCT ?id) as ?count) WHERE {
-    ?id wiki:p0 ?o .
+SELECT DISTINCT ?variable WHERE {
+    ?s ?p ?o .
 }
+LIMIT 10000

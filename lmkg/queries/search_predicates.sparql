@@ -5,4 +5,4 @@ SELECT ?e ?label WHERE {
     ?e <http://www.ontotext.com/plugins/autocomplete#query> "q0" .
     ?e rdfs:label ?label .
     FILTER (!STRSTARTS(STR(?e), STR(wiki:Q)))
-}
+} LIMIT 10

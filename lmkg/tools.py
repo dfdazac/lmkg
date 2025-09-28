@@ -1,11 +1,13 @@
-import math
 import os
 import os.path as osp
 import random
-from typing import Union
+import socket
+import urllib.error
+from typing import Any, Callable
 
-from SPARQLWrapper import JSON, SPARQLWrapper
-from transformers.utils import get_json_schema
+from SPARQLWrapper import JSON, SPARQLWrapper, SPARQLExceptions
+
+from .exceptions import MalformedQueryException
 
 
 def tool(func):
@@ -14,10 +16,10 @@ def tool(func):
 
 
 class Tool:
-    def __init__(self, functions: Union[str, list[str]]):
-        self.tools_json = []
+    def __init__(self, functions: list[str] = None):
+        self.tools = []
 
-        if functions == "all":
+        if functions is None:
             functions = []
             for obj_name in dir(self):
                 obj = getattr(self, obj_name)
@@ -29,7 +31,7 @@ class Tool:
                 attribute = getattr(self, fn_name)
                 is_tool = getattr(attribute, '_is_tool', False)
                 if callable(attribute) and is_tool:
-                    self.tools_json.append(get_json_schema(attribute))
+                    self.tools.append(attribute)
                 else:
                     raise ValueError(f"Invalid function {fn_name}")
             else:
@@ -37,7 +39,7 @@ class Tool:
 
 
 class GraphDBTool(Tool):
-    def __init__(self, functions: Union[str, list[str]], endpoint: str):
+    def __init__(self, endpoint: str, functions: list[str] = None):
         super().__init__(functions)
         self.wrapper = SPARQLWrapper(endpoint)
         self.wrapper.setReturnFormat(JSON)
@@ -60,58 +62,107 @@ class GraphDBTool(Tool):
     def clear_session_ids(self):
         self.session_ids = set()
 
-    def execute_query(self, query: str):
-        self.wrapper.setQuery(query)
-        return self.wrapper.query().convert()
+    def is_alive(self):
+        try:
+            self.execute_query(self._get_query(self.is_alive.__name__))
+            return True
+        except (urllib.error.URLError, ConnectionRefusedError, socket.timeout, socket.error):
+            return False
 
-    def id_in_graph(self, identifier: str):
+    def execute_query(self, query: str):
+        try:
+            self.wrapper.setQuery(query)
+            results = self.wrapper.query().convert()
+            return results
+        except (urllib.error.URLError, ConnectionRefusedError, socket.timeout, socket.error) as e:
+            raise ConnectionError(f"Connection failed: {e}") from e
+        except SPARQLExceptions.QueryBadFormed as sparql_exception:
+            raise MalformedQueryException(f"Attempted to run a malformed query. This is possibly due "
+                                          f"to corrupted entity or predicate identifiers. Check the query:\n"
+                                          f"{query}\n"
+                                          f"Original error: {sparql_exception}")
+
+    def check_id_in_graph(self, identifier: str):
         """Check if a given URI exists in some triple in the KG."""
-        query = self._get_query(self.id_in_graph.__name__)
+        query = self._get_query(self.check_id_in_graph.__name__)
         query = query.replace("id0", identifier)
         result = self.execute_query(query)
 
-        return result['boolean']
+        in_graph = result['boolean']
+        if not in_graph:
+            raise KeyError(f"{identifier} not in kg")
+
+    def get_neighbors(self, identifier: str, identifier_pos: str, variable_pos: str):
+        self.check_id_in_graph(identifier)
+
+        query = self._get_query(self.get_neighbors.__name__)
+        query = query.replace("?variable", f"?{variable_pos}").replace(f"?{identifier_pos}", f"wiki:{identifier}")
+        results = self.execute_query(query)["results"]["bindings"]
+        random.shuffle(results)
+
+        output = []
+        for result in results:
+            uri = result[variable_pos]["value"]
+            entity_id = uri.split("/")[-1]
+            if entity_id.startswith("Q") or entity_id.startswith("P"):
+                output.append(entity_id)
+                self.session_ids.add(entity_id)
+            if len(output) == 5:
+                break
+
+        description_predicate = "rdfs:label" if variable_pos == "p" else "rdfs:comment"
+        max_length = 150 if variable_pos == "p" else 300
+        return self.get_descriptions(output, description_predicate, check_in_graph=False, max_length=max_length)
+
+    def get_descriptions(self, identifiers: list[str], predicate: str, check_in_graph: bool = True,
+                         max_length: int = 300):
+        if check_in_graph:
+            for i in identifiers:
+                self.check_id_in_graph(i)
+
+        query = self._get_query(self.get_descriptions.__name__)
+        query = query.replace("?predicate", f"{predicate}")
+        values_list = '\n'.join([f"wiki:{i}" for i in identifiers])
+        query = query.replace("values_list", values_list)
+        query_results = self.execute_query(query)["results"]["bindings"]
+
+        output = dict()
+        for result in query_results:
+            uri = result["id"]["value"]
+            entity_id = uri.split("/")[-1]
+            label = result["description"]["value"]
+
+            if entity_id not in output:
+                output[entity_id] = [label]
+            else:
+                output[entity_id].append(label)
+
+        for identifier, descriptions in output.items():
+            output[identifier] = ", ".join(descriptions)[:max_length]
+
+        return output
 
     @tool
     def get_entity_description(self, entity_id: str):
-        """Retrieve description of an entity given its unique identifier.
+        """Retrieve description of an entity given its unique KG identifier.
 
         Args:
             entity_id: Identifier of the entity in the knowledge graph.
         """
-        if not self.id_in_graph(entity_id):
-            return f"Entity {entity_id} not found in knowledge graph."
-        query = self._get_query(self.get_entity_description.__name__)
-        query = query.replace("s0", entity_id)
-        query_result = self.execute_query(query)["results"]["bindings"][0]
-        output = dict()
-        output[entity_id] = query_result["comment"]["value"]
-        self.session_ids.add(entity_id)
-        return output
+        return self.get_descriptions([entity_id], "rdfs:comment")
 
     @tool
     def get_predicate_description(self, predicate_id: str):
-        """Retrieve description of an predicate given its unique identifier.
+        """Retrieve description of a predicate given its unique KG identifier.
 
         Args:
             predicate_id: Identifier of the predicate in the knowledge graph.
         """
-        if not self.id_in_graph(predicate_id):
-            return f"Predicate {predicate_id} not found in the graph."
-        query = self._get_query(self.get_predicate_description.__name__)
-        query = query.replace("s0", predicate_id)
-        query_result = self.execute_query(query)["results"]["bindings"]
+        return self.get_descriptions([predicate_id], "rdfs:label")
 
-        output = dict()
-        output[predicate_id] = ", ".join(d["label"]["value"] for d in query_result)
-
-        self.session_ids.add(predicate_id)
-
-        return output
-
-    #@tool
+    @tool
     def search_entities(self, entity_query: str):
-        """Find entity identifiers that best match a given search query.
+        """Find entity KG identifiers that best match a given search query.
 
         Args:
             entity_query: Entity query to search for.
@@ -123,16 +174,18 @@ class GraphDBTool(Tool):
         for result in query_results:
             uri = result["e"]["value"]
             comment = result["shortComment"]["value"]
-            output[uri.split("/")[-1]] = comment
+            entity_id = uri.split("/")[-1]
+            self.session_ids.add(entity_id)
+            output[entity_id] = comment
 
         if len(output) == 0:
             return "No matches found."
         else:
             return output
 
-    #@tool
+    @tool
     def search_predicates(self, predicate_query: str):
-        """Find predicate identifiers with a label matching a predicate
+        """Find predicate KG identifiers with a label matching a predicate
         keyword.
 
         Args:
@@ -146,6 +199,7 @@ class GraphDBTool(Tool):
         for result in query_results:
             uri = result["e"]["value"]
             predicate_id = uri.split("/")[-1]
+            self.session_ids.add(predicate_id)
             label = result["label"]["value"]
             if predicate_id not in predicate_labels:
                 predicate_labels[predicate_id] = [label]
@@ -161,109 +215,54 @@ class GraphDBTool(Tool):
 
         return output
 
-    def get_most_similar(self, unique_id: str):
-        """Retrieve a list of entities or predicates that are semantically
-        similar to a given entity or predicate identifier."""
-        raise NotImplementedError
-
-    def _run_predicate_query(self, query):
-        query_result = self.execute_query(query)["results"]["bindings"]
-
-        output = dict()
-        for result in query_result:
-            uri = result["id"]["value"]
-            entity_id = uri.split("/")[-1]
-            label = result["description"]["value"]
-            output[entity_id] = label
-
-            self.session_ids.add(entity_id)
-
-        return output
-
     @tool
     def get_predicates_with_subject(self, entity_id: str):
-        """Get a list of predicates in which the given entity occurs as a subject.
+        """Return a random list of predicates for which the given entity appears as the subject in the knowledge graph.
 
         Args:
             entity_id: the ID of the entity in the knowledge graph.
         """
-        if not self.id_in_graph(entity_id):
-            return f"Predicate {entity_id} not found in the graph."
-        query = self._get_query(self.get_predicates_with_subject.__name__)
-        query = query.replace("s0", entity_id)
-        return self._run_predicate_query(query)
+        return self.get_neighbors(entity_id, "s", "p")
 
     @tool
     def get_predicates_with_object(self, entity_id: str):
-        """Get a list of predicates in which the given entity occurs as a subject.
+        """Return a random list of predicates for which the given entity appears as the object in the knowledge graph.
 
         Args:
             entity_id: the ID of the entity in the knowledge graph.
         """
-        if not self.id_in_graph(entity_id):
-            return f"Predicate {entity_id} not found in the graph."
-
-        query = self._get_query(self.get_predicates_with_object.__name__)
-        query = query.replace("s0", entity_id)
-        return self._run_predicate_query(query)
-
-    def _execute_count_distinct(self, query: str, predicate_id: str):
-        query = query.replace("p0", predicate_id)
-        query_result = self.execute_query(query)["results"]["bindings"][0]
-        query_result = int(query_result["count"]["value"])
-
-        return query_result
-
-    def count_distinct_subjects(self, predicate_id: str):
-        query = self._get_query(self.count_distinct_subjects.__name__)
-        return self._execute_count_distinct(query, predicate_id)
-
-    def count_distinct_objects(self, predicate_id: str):
-        query = self._get_query(self.count_distinct_objects.__name__)
-        return self._execute_count_distinct(query, predicate_id)
-
-    def _execute_subject_or_object_query(self, query: str, predicate_id: str, num_results: int):
-        if not self.id_in_graph(predicate_id):
-            return f"Predicate {predicate_id} not found in the graph."
-
-        page_size = 5
-        num_pages = math.ceil(num_results / page_size)
-        random_page_idx = random.randint(0, num_pages - 1)
-        offset = random_page_idx * page_size
-        query = query.replace("p0", predicate_id)
-        query = query.replace("0000", f"{offset}")
-        return self._run_predicate_query(query)
+        return self.get_neighbors(entity_id, "o", "p")
 
     @tool
     def get_subject_entities(self, predicate_id: str):
-        """Get a random list of entities that occur as subjects of the given predicate identifier.
+        """Return a random list of entities that appear as subjects in triples with the given predicate.
 
         Args:
             predicate_id: the ID of the predicate in the knowledge graph.
         """
-        num_subjects = self.count_distinct_subjects(predicate_id)
-        query = self._get_query(self.get_subject_entities.__name__)
-        return self._execute_subject_or_object_query(query, predicate_id, num_subjects)
+        return self.get_neighbors(predicate_id, "p", "s")
 
     @tool
     def get_object_entities(self, predicate_id: str):
-        """Get a random list of entities that occur as objects of the given predicate identifier.
+        """Return a random list of entities that appear as objects in triples with the given predicate.
 
         Args:
             predicate_id: the ID of the predicate in the knowledge graph.
         """
-        num_objects = self.count_distinct_objects(predicate_id)
-        query = self._get_query(self.get_object_entities.__name__)
-        return self._execute_subject_or_object_query(query, predicate_id, num_objects)
+        return self.get_neighbors(predicate_id, "p", "o")
 
 
 class AnswerStoreTool(Tool):
-    def __init__(self):
-        super().__init__(functions="all")
+    def __init__(self, graphdb_tool: GraphDBTool, answer_parser: Callable[[str], Any] = None):
+        super().__init__()
         self.answer = None
+        self.graphdb = graphdb_tool
+        self.initial_ids = None
+        self.answer_parser = answer_parser
 
-    def clear_answer(self):
+    def initialize(self, initial_ids: set[str] = None):
         self.answer = None
+        self.initial_ids = initial_ids
 
     @tool
     def submit_final_answer(self, answer: str):
@@ -272,30 +271,35 @@ class AnswerStoreTool(Tool):
         Args:
             answer: Answer to be submitted.
         """
-        self.answer = answer
-        return "Answer submitted."
+        return_string = "Answer submitted"
+        if self.answer_parser:
+            try:
+                self.answer, ids_in_answer = self.answer_parser(answer)
+                valid_ids = self.graphdb.session_ids.union(self.initial_ids if self.initial_ids else set())
+                hallucinated_ids = ids_in_answer.difference(valid_ids)
+                if hallucinated_ids:
+                    return_string = (f"The answer contains identifiers that were not retrieved "
+                                     f"by any function: {', '.join(hallucinated_ids)}. Please try again.")
+            except Exception as e:
+                return_string = f"Error parsing answer: {e}"
+        else:
+            self.answer = answer
+
+        return return_string
 
 
 if __name__ == "__main__":
     from pprint import pprint
 
-    tools = []
-    for obj in dir(GraphDBTool):
-        if hasattr(getattr(GraphDBTool, obj), "_is_tool"):
-            tools.append(obj)
-    db = GraphDBTool(tools, "http://localhost:7200/repositories/wikidata5m")
+    db = GraphDBTool(functions="all", endpoint="http://localhost:7200/repositories/wikidata5m")
     # pprint(db.search_entities("michael jordan"))
-    # pprint(db.get_entity_description("Q41421"))
-    pprint(db.get_predicate_description("P31"))
-    # pprint(db.search_predicates("capital of"))
-    # pprint(db.get_predicates_with_object("Q41421"))
-    # pprint(db.get_subject_entities("P3279"))
-    # pprint(db.get_predicate_description("P3279"))
-    # pprint(db.get_object_entities("P3279"))
-
-    # import time
+    # pprint(db.search_predicates("capital"))
     #
-    # start = time.time()
-    # pprint(db.get_object_entities("P131"))
-    # end = time.time()
-    # print(f"Time taken: {end - start}")
+    # pprint(db.get_entity_description("Q55"))
+    # pprint(db.get_predicate_description("P31"))
+
+    pprint(db.get_predicates_with_subject("Q55"))
+    pprint(db.get_predicates_with_object("Q55"))
+    #
+    pprint(db.get_subject_entities("P131"))
+    pprint(db.get_object_entities("P131"))

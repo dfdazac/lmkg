@@ -1,0 +1,9 @@
+jinja2==3.1.6
+langchain==0.3.23
+langchain-anthropic==0.3.10
+langchain-openai==0.3.12
+langgraph==0.3.29
+langsmith==0.3.31
+sparqlwrapper==2.0.0
+typed-argument-parser==1.10.1
+wandb==0.19.9
