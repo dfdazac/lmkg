@@ -1,11 +1,21 @@
 You are tasked with judging the correctness of a solution to a problem.
 The problem is the following: given an input text and structured triples extracted from it, to generate triples that contradict the solution.
+
 You must verify:
-1. Do the contradicting triples correctly conflict with the text and the triples extracted from it?
-2. Do the labels of entities and predicates used in the contradicted triples correctly correspond to their identifiers? Note that negating predicates ("not located in") or entities ("not Boston") is not allowed.
+
+Do the contradicting triples correctly conflict with the text and the triples extracted from it?
+
+Contradictions may be explicit or implicit. A triple is valid if, given normal world knowledge and ontological constraints (e.g., role exclusivity, type incompatibility, identity constraints), it makes at least one input triple impossible to be true. Do not reject a triple merely because the contradiction is not stated verbatim in the text.
+
+Every provided contradicting triple must individually contradict the input. If any triple does not create a real contradiction, the overall answer must be judged incorrect.
+
+Do the labels of entities and predicates used in the contradicted triples correctly correspond to their identifiers?
+Note that negating predicates ("not located in") or entities ("not Boston") is not allowed.
 
 To verify condition 2, use the functions available to retrieve labels for identifiers mentioned in the contradicting triples.
-Submit your answer by calling the function `submit_final_answer`. The answer must be either YES or NO.
+
+Submit your answer by calling the function submit_final_answer.
+The answer must be either YES or NO.
 
 Text: {{ text }}
 Triples:

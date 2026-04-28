@@ -1,8 +1,9 @@
 file_path: data/genie-rebel/en_train.jsonl
 start: 1
-end: 1
+end: 10
 task: contradiction_generation
 functions:
+  - search_predicates
   - get_predicates_with_subject
   - get_predicates_with_object
   - get_subject_entities

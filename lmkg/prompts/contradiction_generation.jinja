@@ -1,24 +1,42 @@
 You are given an input consisting of a passage and a set of triples that reflect the information in the passage.
-Your task is to generate **contradicting triples**: statements that contradict the passage and input triples, while ensuring they use **valid identifiers** from an existing knowledge graph.
+Your task is to generate contradicting triples: statements that contradict the passage and input triples, while ensuring they use valid identifiers from an existing knowledge graph.
 
-A contradicting triple must state a fact that makes at least one of the input triples impossible to be true, while being semantically valid.
-If both the original triples and the generated triples could simultaneously hold for the same entity, then it is not a contradiction and must not be generated.
+A contradicting triple must state a fact that makes at least one of the input triples impossible to be true, while remaining semantically valid. If both the original triples and the generated triple could simultaneously hold for the same entity, then it is not a contradiction and must not be generated.
 
-Triples are specified with one triple per line, and an element in a triple is specified as [id:label] where id is the identifier in the knowledge graph, and label is a short textual label. The format is
+Triples are specified with one triple per line. Each element in a triple is specified as:
 
 [subject id:subject label] [predicate id:predicate label] [object id:object label]
 
-### Guidelines
+## Required Contradiction Types
+
+You must generate at least one contradicting triple of each of the following types.
+
+1. Entity Substitution Contradictions: Create a contradiction by replacing the subject or the object of an input triple, while keeping the predicate unchanged. The replacement entity must be incompatible with the original triple. The contradiction must rely on semantic or ontological incompatibility (e.g., functional roles, exclusivity, identity constraints), not merely on being different. Simple alternative fillers for multi-valued predicates are discouraged unless they clearly violate exclusivity.
+
+Example (unformatted): Alice - president of - United States
+Contradiction (entity substitution): Alice - president of - Germany
+
+2. Indirect Contradictions: Create a contradiction by finding a predicate not present in the input triples, and building a triple with it that conflicts with the input directly or indirectly. You may search for the IDs of useful predicates using the search_predicates function. The contradiction should rely on role incompatibility, legal constraints, or ontological constraints, not surface differences.
+
+Example (unformatted): Alice - works for - Google
+Contradiction (relation substitution): Alice - chief executive officer of - Bayer
+
+## Guidelines
+
 - Make use of the functions available to interact with the knowledge graph and retrieve valid entity and predicate identifiers.
-- Entities retrieved by `get_subject_entities` must be used in the **subject** position.
-- Entities retrieved by `get_object_entities` must be used in the **object** position.
-- **Do not** create artificial negations like “Not Boston”, “Not a fire station”, or "Not located in".
-- Contradicting triples must **conflict logically** with the given input.
-- Use only entity and predicate identifiers retrieved by the functions from the knowledge graph. **Do not** come up with identifiers on your own.
-- If an answer contains multiple triples, use a single string with new line separators. Submit your answer by calling the `submit_final_answer` function and then stop completely. The answer should consist only of contradicting triples.
+- Make as few function calls as necessary to generate valid contradictions. Avoid exploratory or redundant calls once a logically incompatible entity or predicate has been identified.
+- Entities retrieved by get_subject_entities must be used in the subject position.
+- Entities retrieved by get_object_entities must be used in the object position.
+- Use only entity and predicate identifiers retrieved from the knowledge graph. Do not invent identifiers.
+- Do not create artificial negations such as “Not Boston”, “Not located in”, etc.
+- Contradictions must be logical, not stylistic or merely alternative facts.
 - Do not output any of the input triples verbatim.
+- If the answer contains multiple triples, use a single string with newline separators.
+- Submit your answer by calling the submit_final_answer function and then stop completely.
+- The final answer must consist only of contradicting triples.
 
 Please proceed with the task of generating contradicting triples given the following inputs:
 Passage: {{ passage }}
 Triples:
 {{ triples }}
+
