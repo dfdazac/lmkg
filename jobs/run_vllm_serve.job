@@ -1,0 +1,115 @@
+#!/bin/bash
+#SBATCH --job-name=vllm_inference
+#SBATCH --partition=gpu_a100 # or gpu_h100
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --gpus-per-node=4
+#SBATCH --time=00:20:00
+
+set -euo pipefail
+
+# Path to .sif apptainer. Use your own container or the prebuilt container below
+CONTAINER_PATH=/projects/2/managed_datasets/containers/vllm/vllm-0.19.0.sif
+
+# Prevent models from saving it /home/<user>/.cache
+DOWNLOAD_DIR=/scratch-shared/$USER/vllm/
+export HF_HOME=$DOWNLOAD_DIR
+mkdir -p "$DOWNLOAD_DIR"
+
+MODEL_CHECKPOINT=Qwen/Qwen3.5-27B
+PORT=8000
+VLLM_BASE_URL=http://localhost:$PORT/v1
+GRAPHDB_ENDPOINT=http://localhost:7200/repositories/wikidata5m
+GRAPHDB_BIN_DIR=$HOME/bin/graphdb/bin
+GRAPHDB_LOG=$HOME/graphdb.log
+LMKG_ENV=lmkg
+LMKG_REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+ENTITY_LINKING_TEXT="Amsterdam is the capital of the Netherlands"
+
+VLLM_PID=
+GRAPHDB_PID=
+STARTED_GRAPHDB=0
+
+cleanup() {
+    if [ -n "${VLLM_PID}" ]; then
+        kill "${VLLM_PID}" 2>/dev/null || true
+        wait "${VLLM_PID}" 2>/dev/null || true
+    fi
+
+    if [ "${STARTED_GRAPHDB}" -eq 1 ] && [ -n "${GRAPHDB_PID}" ]; then
+        kill "${GRAPHDB_PID}" 2>/dev/null || true
+        wait "${GRAPHDB_PID}" 2>/dev/null || true
+    fi
+}
+
+trap cleanup EXIT
+
+wait_for_url() {
+    local name=$1
+    local url=$2
+    local max_wait=$3
+    local elapsed=0
+
+    echo "Waiting for ${name} to be ready..."
+    until curl -sS -o /dev/null --fail "$url"; do
+        sleep 5
+        elapsed=$((elapsed + 5))
+        if [ "${elapsed}" -ge "${max_wait}" ]; then
+            echo "Error: ${name} failed to start within ${max_wait} seconds"
+            return 1
+        fi
+        echo "Waiting for ${name}... ${elapsed}s"
+    done
+}
+
+wait_for_graphdb() {
+    local max_wait=$1
+    local elapsed=0
+
+    echo "Waiting for GraphDB repository to be ready..."
+    until curl -sS -G -o /dev/null --fail \
+        --data-urlencode 'query=ASK {}' \
+        "$GRAPHDB_ENDPOINT"; do
+        sleep 5
+        elapsed=$((elapsed + 5))
+        if [ "${elapsed}" -ge "${max_wait}" ]; then
+            echo "Error: GraphDB repository failed to start within ${max_wait} seconds"
+            return 1
+        fi
+        echo "Waiting for GraphDB repository... ${elapsed}s"
+    done
+}
+
+if curl -sS -G -o /dev/null --fail \
+    --data-urlencode 'query=ASK {}' \
+    "$GRAPHDB_ENDPOINT"; then
+    echo "GraphDB repository already available at ${GRAPHDB_ENDPOINT}"
+else
+    echo "Starting GraphDB from ${GRAPHDB_BIN_DIR}"
+    bash -lc "cd \"$GRAPHDB_BIN_DIR\" && exec ./graphdb" > "$GRAPHDB_LOG" 2>&1 &
+    GRAPHDB_PID=$!
+    STARTED_GRAPHDB=1
+    wait_for_graphdb 300
+fi
+
+BIND_DIRS="/scratch-shared/$USER"
+apptainer exec --nv \
+    -B "${BIND_DIRS}" \
+    "${CONTAINER_PATH}" \
+    vllm serve "$MODEL_CHECKPOINT" \
+    --tensor-parallel-size "$SLURM_GPUS_ON_NODE" \
+    --download-dir "$DOWNLOAD_DIR" \
+    --uvicorn-log-level warning \
+    --port "$PORT" &
+
+VLLM_PID=$!
+wait_for_url "vLLM server" "http://localhost:$PORT/health" 1000
+
+source activate "$LMKG_ENV"
+export OPENAI_API_KEY=${OPENAI_API_KEY:-dummy}
+
+cd "$LMKG_REPO"
+python -m lmkg entity_linking \
+    --text="$ENTITY_LINKING_TEXT" \
+    --base-url="$VLLM_BASE_URL" \
+    --model="$MODEL_CHECKPOINT"
