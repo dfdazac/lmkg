@@ -163,5 +163,6 @@ cython_debug/
 data/
 jobs/
 wandb/
+logs/
 
 .codex
