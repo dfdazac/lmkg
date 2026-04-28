@@ -39,10 +39,12 @@ tar --use-compress-program=unzstd -xvf wikidata5m.tar.zst
 
 Activate the repository on the GraphDB workbench, which will by default establish an endpoint at `http://localhost:7200/repositories/wikidata5m`.
 
-**Installing LMKG:** We provide a conda environment file for creating a new environment called `lmkg` with all the dependencies:
+**Installing LMKG:** Create a new conda environment, activate it, and install the Python dependencies with `pip`:
 
 ```shell
-conda env create -f environment.yml
+conda create -n lmkg python=3.11
+conda activate lmkg
+pip install -r requirements.txt
 ```
 
 # Running
@@ -58,4 +60,3 @@ python -m lmkg entity_linking \
 --base-url="https://your-openai-compatible-endpoint/v1" \
 --model="gpt-5.1"
 ```
-
