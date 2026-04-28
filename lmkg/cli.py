@@ -6,7 +6,8 @@ from lmkg.agent import LMKGAgent
 
 
 class Arguments(Tap):
-    model: str = "gpt-5.1"
+    model: str
+    base_url: str
     task: str = "entity_linking"
     functions: str = "search_entities"
 
@@ -20,6 +21,7 @@ class Arguments(Tap):
 def main(args: Arguments):
     agent = LMKGAgent(
         model=args.model,
+        base_url=args.base_url,
         functions=args.functions.split(","),
         graphdb_endpoint=args.graphdb_endpoint,
         recursion_limit=args.recursion_limit

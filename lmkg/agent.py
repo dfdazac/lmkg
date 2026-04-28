@@ -19,6 +19,8 @@ class LMKGAgent:
     process and retrieve information from a knowledge graph.
 
     Args:
+        model (str): The language model name to use.
+        base_url (str): The OpenAI-compatible API base URL for model requests.
         functions (list[str]): A list of function names to use with the graph database,
             or the string "all" to use all available functions.
         graphdb_endpoint (str): The URL endpoint for accessing the graph database.
@@ -29,6 +31,7 @@ class LMKGAgent:
     """
     def __init__(self,
                  model: str,
+                 base_url: str,
                  functions: list[str],
                  graphdb_endpoint: str,
                  answer_parser: Callable[[str], tuple[Any, set[str]]] = None,
@@ -44,7 +47,7 @@ class LMKGAgent:
         model = ChatOpenAI(
             model=model,
             max_retries=2,
-            base_url="https://ai-research-proxy.azurewebsites.net",
+            base_url=base_url,
         )
         model = model.bind_tools(tool_list, parallel_tool_calls=False)
         tools = ToolNode(tool_list, handle_tool_errors=(pydantic.ValidationError,))

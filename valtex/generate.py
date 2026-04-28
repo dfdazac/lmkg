@@ -20,7 +20,8 @@ class Arguments(Tap):
     end: int = None  # Ending line number (inclusive, 0-based)
     max_to_generate: int = None  # Maximum number of instances to generate
 
-    model: str = "gpt-5.1"
+    model: str
+    base_url: str
     graphdb_endpoint: str = "http://localhost:7200/repositories/wikidata5m"
     task: str = "contradiction_generation"
     functions: list[str] = None
@@ -93,6 +94,7 @@ def run_agent_safely(agent: LMKGAgent, agent_name: str, *args, **kwargs):
 def main(args: Arguments):
     agent = LMKGAgent(
         model=args.model,
+        base_url=args.base_url,
         functions=args.functions,
         graphdb_endpoint=args.graphdb_endpoint,
         answer_parser=answer_parser,
@@ -103,6 +105,7 @@ def main(args: Arguments):
     )
     judge = LMKGAgent(
         model=args.model,
+        base_url=args.base_url,
         functions=["get_entity_labels", "get_predicate_description"],
         graphdb_endpoint=args.graphdb_endpoint,
         answer_parser=judge_answer_parser,
