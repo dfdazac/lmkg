@@ -100,6 +100,8 @@ apptainer exec --nv \
     --tensor-parallel-size "$SLURM_GPUS_ON_NODE" \
     --download-dir "$DOWNLOAD_DIR" \
     --uvicorn-log-level warning \
+    --enable-auto-tool-choice \
+    --tool-call-parser hermes \
     --port "$PORT" &
 
 VLLM_PID=$!
@@ -116,5 +118,5 @@ fi
 cd "$LMKG_REPO"
 python -m lmkg entity_linking \
     --text="$ENTITY_LINKING_TEXT" \
-    --base-url="$VLLM_BASE_URL" \
+    --base_url="$VLLM_BASE_URL" \
     --model="$MODEL_CHECKPOINT"
