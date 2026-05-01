@@ -49,14 +49,23 @@ pip install -r requirements.txt
 
 # Running
 
-- **LLM access**: LMKG uses an OpenAI-compatible chat completion API via `langchain_openai.ChatOpenAI`. We assume that the environment variable `OPENAI_API_KEY` is set and that the configured endpoint exposes the requested model. Use `--base-url` to point LMKG at your API endpoint. The current default is `https://ai-research-proxy.azurewebsites.net`.
 - **Graph endpoint**: By default, we assume a running graph endpoint at `http://localhost:7200/repositories/wikidata5m`.
 - **Supported tasks**: `entity_linking`, `relation_extraction`, and `contradiction_generation`. Each task has a corresponding prompt in `lmkg/prompts`, defined as a jinja template with predefined arguments. The values for the arguments need to be passed via the command line.
+
+### 1. LLM via API
+
+LMKG uses an OpenAI-compatible chat completion API via `langchain_openai.ChatOpenAI`. We assume that the environment variable `OPENAI_API_KEY` is set and that the configured endpoint exposes the requested model. Use `--base_url` to point LMKG at your API endpoint. The current default is `https://ai-research-proxy.azurewebsites.net`.
+
 
 Running entity linking:
 ```shell
 python -m lmkg entity_linking \
 --text="Amsterdam is the capital of the Netherlands" \
---base-url="https://your-openai-compatible-endpoint/v1" \
+--base_url="https://your-openai-compatible-endpoint/v1" \
 --model="gpt-5.1"
 ```
+
+## 2. LLM running locally
+
+Local frameworks that support OpenAI-compatible endpoints, like [vLLM](https://vllm.ai/), can also be used in LMKG. An example for using LMKG with vLLM running on the Snellius cluster is available at [`jobs/run_vllm_serve.job`](jobs/run_vllm_serve.job).
+
