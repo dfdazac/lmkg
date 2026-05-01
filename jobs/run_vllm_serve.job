@@ -20,10 +20,10 @@ MODEL_CHECKPOINT=Qwen/Qwen3.5-27B
 PORT=8000
 VLLM_BASE_URL=http://localhost:$PORT/v1
 GRAPHDB_ENDPOINT=http://localhost:7200/repositories/wikidata5m
-GRAPHDB_BIN_DIR=$HOME/bin/graphdb/bin
+GRAPHDB_BIN_DIR=$HOME/bin/graphdb-10.7.3/bin
 GRAPHDB_LOG=$HOME/graphdb.log
 LMKG_ENV=lmkg
-LMKG_REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+LMKG_REPO=${LMKG_REPO:-$HOME/lmkg}
 ENTITY_LINKING_TEXT="Amsterdam is the capital of the Netherlands"
 
 VLLM_PID=
@@ -107,6 +107,11 @@ wait_for_url "vLLM server" "http://localhost:$PORT/health" 1000
 
 source activate "$LMKG_ENV"
 export OPENAI_API_KEY=${OPENAI_API_KEY:-dummy}
+
+if [ ! -d "$LMKG_REPO/lmkg" ]; then
+    echo "Error: LMKG repo not found at $LMKG_REPO"
+    exit 1
+fi
 
 cd "$LMKG_REPO"
 python -m lmkg entity_linking \
